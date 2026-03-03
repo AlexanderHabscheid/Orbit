@@ -1,7 +1,11 @@
 {
   "name": "orbit-bus",
-  "version": "0.1.2",
+  "version": "0.1.6",
   "description": "ORBIT local agent message bus CLI powered by NATS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexanderHabscheid/Orbit"
+  },
   "license": "MIT",
   "type": "module",
   "files": [

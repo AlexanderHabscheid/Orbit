@@ -6,9 +6,31 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-03-03
+
+### Changed
+- Added root `package.json.repository.url` matching `https://github.com/AlexanderHabscheid/Orbit` to satisfy npm provenance verification.
+- Root and Python package versions bumped to `0.1.6` for final release validation.
+
+## [0.1.5] - 2026-03-03
+
+### Changed
+- `npm-publish` now upgrades to npm v11 in CI before publish to ensure trusted publishing OIDC support.
+- Root and Python package versions bumped to `0.1.5` for another release validation tag.
+
+## [0.1.4] - 2026-03-03
+
+### Changed
+- `npm-publish` release step now clears `NODE_AUTH_TOKEN` to force npm trusted publishing via OIDC.
+- Root and Python package versions bumped to `0.1.4` for a fresh release validation tag.
+
+## [0.1.3] - 2026-03-03
+
 ### Changed
 - Release workflow now publishes a single npm package (`orbit-bus`); TypeScript SDK remains in-repo and is no longer published as a separate npm release artifact by CI.
 - Release policy/runbook updated to reflect single npm package publishing and Python trusted publishing flow.
+- Python package metadata renamed from `orbit-sdk` to `Orbitai-CLI` to match trusted publisher configuration.
+- Root and Python package versions bumped to `0.1.3` for trusted publish verification.
 
 ## [0.1.2] - 2026-03-03
 
