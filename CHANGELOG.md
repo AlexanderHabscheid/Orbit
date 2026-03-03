@@ -6,6 +6,12 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-03-03
+
+### Changed
+- `npm-publish` now upgrades to npm v11 in CI before publish to ensure trusted publishing OIDC support.
+- Root and Python package versions bumped to `0.1.5` for another release validation tag.
+
 ## [0.1.4] - 2026-03-03
 
 ### Changed
