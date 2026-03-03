@@ -10,7 +10,7 @@ This runbook assumes all validation gates are green and package versions are ali
 ## Preconditions
 
 - npm trusted publishing is configured for:
-  - `orbit-bus`
+  - `orbitai-cli`
 - PyPI trusted publishing is configured for:
   - `Orbitai-CLI`
 - GitHub Actions release workflow exists: `.github/workflows/release.yml`
@@ -84,7 +84,7 @@ Pushing tag `v0.1.1` triggers `.github/workflows/release.yml`.
 Verify:
 
 - GitHub Release created with attached artifacts
-- npm publish success for `orbit-bus`
+- npm publish success for `orbitai-cli`
 - PyPI publish success for `Orbitai-CLI`
 - Provenance attestations are attached
 

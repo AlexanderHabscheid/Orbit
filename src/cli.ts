@@ -18,6 +18,8 @@ import { cmdCell } from "./commands/cell.js";
 import { cmdDlqReplay } from "./commands/dlq_replay.js";
 import { cmdDlqInspect } from "./commands/dlq_inspect.js";
 import { cmdDlqPurge } from "./commands/dlq_purge.js";
+import { cmdInit } from "./commands/init.js";
+import { cmdDoctor } from "./commands/doctor.js";
 import { runEchoCli } from "./echo/cli.js";
 import { argValue, hasFlag, parseJsonInput } from "./util.js";
 
@@ -41,6 +43,8 @@ Usage:
   orbit monitor [--service <svc>] [--interval-ms 2000] [--timeout-ms 1500] [--alerts] [--alert-latency-ms 250] [--alert-error-rate 0.05] [--alert-consecutive 3] [--alert-cooldown-s 30] [--once]
   orbit agent
   orbit api [--host 127.0.0.1] [--port 8787]
+  orbit init [--profile single-agent|multi-agent|production] [--out-dir .] [--force]
+  orbit doctor
   orbit cell <init|start|gateway|status> [...]
   orbit echo <start|publish|subscribe|stats|bench> [...]
 `;
@@ -284,6 +288,19 @@ export async function run(argv: string[], cwd: string): Promise<void> {
         throw new OrbitError("BAD_ARGS", "--port must be an integer between 1 and 65535");
       }
       await cmdApi(config, logger, { host, port });
+      return;
+    }
+    case "init": {
+      cmdInit(logger, {
+        cwd,
+        outDir: argValue(rest, "--out-dir") ?? ".",
+        profile: argValue(rest, "--profile") ?? "single-agent",
+        force: hasFlag(rest, "--force")
+      });
+      return;
+    }
+    case "doctor": {
+      await cmdDoctor(config, logger);
       return;
     }
     case "cell": {

@@ -1,0 +1,14 @@
+{
+  "module": "Star",
+  "name": "single-agent",
+  "description": "Minimal local setup for one agent service.",
+  "steps": [
+    "orbit up",
+    "orbit serve --name text --spec examples/star/echo.worker.spec.json",
+    "orbit call text.upper --json @examples/star/request.json"
+  ],
+  "runtime": {
+    "retries": 1,
+    "requestTimeoutMs": 3000
+  }
+}

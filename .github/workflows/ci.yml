@@ -98,7 +98,7 @@ jobs:
       - run: python -m pip install --upgrade pip build
       - run: python -m build sdk/python
       - run: |
-          ROOT_TGZ="$(ls orbit-bus-*.tgz | head -n1)"
+          ROOT_TGZ="$(ls orbitai-cli-*.tgz | head -n1)"
           npx --yes --package "./${ROOT_TGZ}" orbit --help > /dev/null
           npx --yes --package "./${ROOT_TGZ}" echocore --help > /dev/null
       - run: |

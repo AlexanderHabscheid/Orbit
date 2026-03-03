@@ -1,0 +1,20 @@
+services:
+  nats:
+    image: nats:2
+    command: ["-js"]
+    ports:
+      - "4222:4222"
+
+  orbit-api:
+    image: node:20
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: ["npx", "orbit", "api", "--host", "0.0.0.0", "--port", "8787"]
+    environment:
+      ORBIT_NATS_URL: nats://nats:4222
+      ORBIT_API_TOKEN: ${ORBIT_API_TOKEN:-change-me}
+    depends_on:
+      - nats
+    ports:
+      - "8787:8787"

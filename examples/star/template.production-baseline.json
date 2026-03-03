@@ -1,0 +1,22 @@
+{
+  "module": "Star",
+  "name": "production-baseline",
+  "description": "Baseline production settings for secured API + durable publish.",
+  "api": {
+    "allowedHosts": ["127.0.0.1", "localhost", "::1"],
+    "authToken": "change-me"
+  },
+  "runtime": {
+    "apiMaxConcurrent": 256,
+    "apiRequestTimeoutMs": 10000,
+    "publishDurableEnabled": true,
+    "publishDurableTimeoutMs": 2500,
+    "circuitBreakerFailureThreshold": 5,
+    "circuitBreakerCooldownMs": 10000
+  },
+  "opsChecks": [
+    "orbit doctor",
+    "curl -H \"Authorization: Bearer $ORBIT_API_TOKEN\" http://127.0.0.1:8787/healthz",
+    "curl -H \"Authorization: Bearer $ORBIT_API_TOKEN\" http://127.0.0.1:8787/readyz"
+  ]
+}
