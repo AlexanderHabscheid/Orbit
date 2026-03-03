@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "description": "Star starter worker service",
+  "methods": {
+    "upper": {
+      "description": "Uppercase request text",
+      "transport": "worker",
+      "command": "node",
+      "args": [
+        "-e",
+        "process.stdin.setEncoding('utf8');let b='';process.stdin.on('data',c=>{b+=c;let i;while((i=b.indexOf('\\n'))>=0){const line=b.slice(0,i);b=b.slice(i+1);if(!line.trim())continue;const msg=JSON.parse(line);const text=String(msg?.payload?.text??'');console.log(JSON.stringify({id:msg.id,ok:true,result:{text:text.toUpperCase()}}));}});"
+      ]
+    }
+  }
+}

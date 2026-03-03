@@ -1,0 +1,22 @@
+{
+  "module": "Star",
+  "name": "multi-agent-retry-dedupe",
+  "description": "Multi-agent topology with retry and dedupe-safe event publishing.",
+  "runtime": {
+    "retries": 3,
+    "requestTimeoutMs": 4000,
+    "publishDurableEnabled": true,
+    "publishDurableTimeoutMs": 2500
+  },
+  "patterns": [
+    {
+      "command": "orbit publish agents.tasks --json @task.json --durable --dedupe-key task-123"
+    },
+    {
+      "command": "orbit subscribe agents.tasks --durable-name task-workers --stream orbit_agents_stream --max-deliver 5 --dlq-topic agents.tasks.dlq"
+    },
+    {
+      "command": "orbit dlq-replay agents.tasks.dlq --to-topic agents.tasks --error-code AGENT_OVERLOADED --purge-replayed"
+    }
+  ]
+}

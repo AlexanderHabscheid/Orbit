@@ -1,6 +1,6 @@
 {
-  "name": "orbit-bus",
-  "version": "0.1.6",
+  "name": "orbitai-cli",
+  "version": "0.2.0",
   "description": "ORBIT local agent message bus CLI powered by NATS",
   "repository": {
     "type": "git",

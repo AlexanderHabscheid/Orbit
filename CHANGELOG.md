@@ -6,6 +6,19 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-03
+
+### Added
+- New `Star` onboarding module with `orbit init` scaffold generation and `orbit doctor` environment diagnostics.
+- Star templates and starter assets under `examples/star/*`, including single-agent, multi-agent retry/dedupe, and production baseline profiles.
+- Docker-first starter stack via `docker-compose.star.yml`.
+- CI bootstrap helper script at `examples/star/ci-call.sh`.
+
+### Changed
+- npm package name moved from `orbit-bus` to `orbitai-cli`.
+- Root and Python package versions bumped to `0.2.0`.
+- Command docs and CLI usage updated with Star onboarding commands.
+
 ## [0.1.6] - 2026-03-03
 
 ### Changed

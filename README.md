@@ -21,10 +21,24 @@ ORBIT is a local-first agent message bus CLI built on NATS with:
 ## Install
 
 ```bash
+npm install -g orbitai-cli
+```
+
+From source:
+
+```bash
 npm install
 npm run build
 npm link
 ```
+
+## Star Module
+
+`Star` is the onboarding module for fast integration:
+
+- `orbit init` scaffolds ready-to-run files.
+- `orbit doctor` validates runtime dependencies and config health.
+- `examples/star/*` includes known-good templates for single-agent, multi-agent, and production baseline flows.
 
 ## Commands
 
@@ -45,6 +59,8 @@ orbit bench-overhead <svc>.<method> --json @req.json [--iterations 100] [--timeo
 orbit monitor [--service <svc>] [--interval-ms 2000] [--timeout-ms 1500] [--alerts] [--alert-latency-ms 250] [--alert-error-rate 0.05] [--alert-consecutive 3] [--alert-cooldown-s 30] [--once]
 orbit agent
 orbit api [--host 127.0.0.1] [--port 8787]
+orbit init [--profile single-agent|multi-agent|production] [--out-dir .] [--force]
+orbit doctor
 orbit cell <init|start|gateway|status> [...]
 orbit echo <start|publish|subscribe|stats|bench> [...]
 echocore start [--socket /tmp/echocore.sock] [--tcp-port 7777]
@@ -118,6 +134,52 @@ All bus messages use:
 ```
 
 ## Quickstart
+
+### 60-second quickstart
+
+```bash
+orbit init --profile single-agent
+orbit up
+orbit serve --name text --spec examples/star/echo.worker.spec.json
+orbit call text.upper --json @examples/star/request.json
+orbit doctor
+```
+
+### Copy-paste integration snippets
+
+Node agent:
+
+```bash
+orbit call text.upper --json '{"text":"agent request"}'
+```
+
+Python agent:
+
+```python
+from orbit_sdk.client import OrbitClient
+
+client = OrbitClient("http://127.0.0.1:8787")
+print(client.call("text.upper", {"text": "python agent"}))
+```
+
+CI:
+
+```bash
+bash examples/star/ci-call.sh
+```
+
+### Docker-first bootstrap
+
+```bash
+export ORBIT_API_TOKEN=change-me
+docker compose -f docker-compose.star.yml up
+```
+
+Known-good templates:
+
+- `examples/star/template.single-agent.json`
+- `examples/star/template.multi-agent.json`
+- `examples/star/template.production-baseline.json`
 
 1. Start broker:
 
