@@ -63,7 +63,7 @@ jobs:
     needs: build-artifacts
     environment:
       name: pypi
-      url: https://pypi.org/p/orbit-sdk
+      url: https://pypi.org/p/orbitai-cli
     permissions:
       id-token: write
     steps:

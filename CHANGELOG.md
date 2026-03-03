@@ -6,9 +6,13 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-03-03
+
 ### Changed
 - Release workflow now publishes a single npm package (`orbit-bus`); TypeScript SDK remains in-repo and is no longer published as a separate npm release artifact by CI.
 - Release policy/runbook updated to reflect single npm package publishing and Python trusted publishing flow.
+- Python package metadata renamed from `orbit-sdk` to `Orbitai-CLI` to match trusted publisher configuration.
+- Root and Python package versions bumped to `0.1.3` for trusted publish verification.
 
 ## [0.1.2] - 2026-03-03
 

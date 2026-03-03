@@ -12,7 +12,7 @@ This runbook assumes all validation gates are green and package versions are ali
 - npm trusted publishing is configured for:
   - `orbit-bus`
 - PyPI trusted publishing is configured for:
-  - `orbit-sdk`
+  - `Orbitai-CLI`
 - GitHub Actions release workflow exists: `.github/workflows/release.yml`
 - Working tree is clean.
 
@@ -85,7 +85,7 @@ Verify:
 
 - GitHub Release created with attached artifacts
 - npm publish success for `orbit-bus`
-- PyPI publish success for `orbit-sdk`
+- PyPI publish success for `Orbitai-CLI`
 - Provenance attestations are attached
 
 ## Recommended `v0.1.x` Sequence
