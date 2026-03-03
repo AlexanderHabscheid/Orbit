@@ -16,7 +16,7 @@
 - Artifact smoke install (`orbit`, `echocore`, `orbit-ts`, `orbit-py` help commands from packaged artifacts)
 
 ## Publishing
-- Root package and TypeScript SDK publish to npm from signed Git tags `v*` via trusted publishing (OIDC).
+- Root package (`orbit-bus`) publishes to npm from signed Git tags `v*` via trusted publishing (OIDC).
 - Python SDK publishes from the same tag via Trusted Publishing.
 - Release assets are attested with GitHub build provenance.
 - Operational cut sequence is documented in `docs/release-cut-runbook.md`.
