@@ -1,0 +1,40 @@
+{
+  "name": "orbit-bus",
+  "version": "0.1.1",
+  "description": "ORBIT local agent message bus CLI powered by NATS",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist/src/**",
+    "README.md",
+    "CHANGELOG.md",
+    "docs/orbit-api-contract.yaml"
+  ],
+  "bin": {
+    "orbit": "dist/src/index.js",
+    "echocore": "dist/src/echocore.js"
+  },
+  "scripts": {
+    "prepack": "npm run build",
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --import tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --import tsx tests/*.test.ts",
+    "test:integration": "node --test --import tsx tests/integration.orbit.e2e.test.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "perf": "node --import tsx scripts/perf-budget.ts",
+    "bootstrap:prod": "node --import tsx scripts/bootstrap-production-config.ts"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "nats": "^2.29.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.2"
+  }
+}
