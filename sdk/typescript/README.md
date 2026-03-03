@@ -5,7 +5,7 @@ TypeScript client and CLI for the Orbit external API (`orbit api`).
 ## Usage
 
 ```ts
-import { OrbitClient } from "@orbit/sdk-typescript";
+import { OrbitClient } from "orbit-sdk-typescript";
 
 const client = new OrbitClient({ baseUrl: "http://127.0.0.1:8787" });
 const out = await client.call({
