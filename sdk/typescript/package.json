@@ -1,0 +1,27 @@
+{
+  "name": "@orbit/sdk-typescript",
+  "version": "0.1.1",
+  "description": "TypeScript SDK and CLI for Orbit API service",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist/**",
+    "README.md"
+  ],
+  "bin": {
+    "orbit-ts": "dist/cli.js"
+  },
+  "scripts": {
+    "prepack": "npm run build",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "typescript": "^5.8.2"
+  }
+}
