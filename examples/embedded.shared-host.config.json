@@ -1,0 +1,54 @@
+{
+  "natsUrl": "nats://127.0.0.1:4222",
+  "requestTimeoutMs": 3500,
+  "retries": 1,
+  "activeContext": "default",
+  "kvBucket": "orbit_registry",
+  "objectStoreBucket": "orbit_datapacks",
+  "otel": {
+    "serviceName": "orbit-cli"
+  },
+  "performance": {
+    "mode": "balanced",
+    "traceSampleRate": 0.02,
+    "trustedLocal": false,
+    "traceBufferMaxEvents": 1200,
+    "traceFlushIntervalMs": 60
+  },
+  "routing": {
+    "subjectPrefix": "orbit"
+  },
+  "runtime": {
+    "serveMaxInflightGlobal": 12,
+    "serveMaxInflightPerMethod": 3,
+    "serveMaxQueueDepth": 48,
+    "workerPoolSize": 1,
+    "workerMaxPendingPerWorker": 16,
+    "apiMaxConcurrent": 16,
+    "apiMaxBodyBytes": 262144,
+    "apiRequestTimeoutMs": 8000,
+    "agentMaxConcurrent": 24,
+    "agentMaxRequestBytes": 65536,
+    "callRateLimitPerSec": 20,
+    "circuitBreakerFailureThreshold": 3,
+    "circuitBreakerCooldownMs": 15000,
+    "circuitBreakerHalfOpenMax": 1,
+    "monitorMaxParallel": 2,
+    "monitorJitterMs": 500,
+    "monitorDownBackoffFactor": 2.0,
+    "monitorDownBackoffMaxMs": 30000
+  },
+  "agent": {
+    "enabled": true,
+    "socketPath": "~/.orbit/agent.sock"
+  },
+  "logLevel": "warn",
+  "dataDir": "~/.orbit",
+  "contexts": {
+    "default": {
+      "natsUrl": "nats://127.0.0.1:4222",
+      "requestTimeoutMs": 3500,
+      "retries": 1
+    }
+  }
+}
