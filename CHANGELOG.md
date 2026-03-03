@@ -6,6 +6,12 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-03-03
+
+### Changed
+- Added root `package.json.repository.url` matching `https://github.com/AlexanderHabscheid/Orbit` to satisfy npm provenance verification.
+- Root and Python package versions bumped to `0.1.6` for final release validation.
+
 ## [0.1.5] - 2026-03-03
 
 ### Changed
