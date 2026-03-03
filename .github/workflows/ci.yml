@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  orbit-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  orbit-sdk-typescript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+      - run: npm pack --dry-run
+
+  orbit-sdk-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m compileall orbit_cli.py orbit_sdk
+      - run: python -m pip install --upgrade pip build twine
+      - run: python -m unittest discover -s tests -p "test_*.py"
+      - run: python -m build
+      - run: python -m twine check dist/*
+
+  orbit-integration-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:integration
+
+  artifact-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm pack --dry-run > /tmp/orbit-pack.txt
+      - run: |
+          ! grep -E '(\.github/|tests/|sdk/python/|\.orbit-local/|__pycache__/)' /tmp/orbit-pack.txt
+      - run: cd sdk/typescript && npm ci
+      - run: cd sdk/typescript && npm pack --dry-run > /tmp/orbit-sdk-ts-pack.txt
+      - run: |
+          ! grep -E '(^| )src/' /tmp/orbit-sdk-ts-pack.txt
+
+  smoke-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci
+      - run: npm run build
+      - run: npm pack
+      - run: cd sdk/typescript && npm ci
+      - run: cd sdk/typescript && npm run build
+      - run: cd sdk/typescript && npm pack
+      - run: python -m pip install --upgrade pip build
+      - run: python -m build sdk/python
+      - run: |
+          ROOT_TGZ="$(ls orbit-bus-*.tgz | head -n1)"
+          npx --yes --package "./${ROOT_TGZ}" orbit --help > /dev/null
+          npx --yes --package "./${ROOT_TGZ}" echocore --help > /dev/null
+      - run: |
+          TS_TGZ="$(ls sdk/typescript/orbit-sdk-typescript-*.tgz | head -n1)"
+          npx --yes --package "./${TS_TGZ}" orbit-ts --help > /dev/null
+      - run: |
+          python -m venv /tmp/orbit-smoke-venv
+          . /tmp/orbit-smoke-venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install sdk/python/dist/*.whl
+          orbit-py --help > /dev/null
