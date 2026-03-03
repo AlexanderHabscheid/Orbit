@@ -1,0 +1,31 @@
+{
+  "description": "Simple uppercase method",
+  "version": "1.0.0",
+  "methods": {
+    "upper": {
+      "description": "Uppercases req.text",
+      "command": "node",
+      "args": [
+        "-e",
+        "const text=process.argv[1]||'';console.log(JSON.stringify({text:String(text).toUpperCase()}));",
+        "{{text}}"
+      ],
+      "request_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
