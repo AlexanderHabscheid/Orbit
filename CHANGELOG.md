@@ -6,6 +6,13 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-03-03
+
+### Changed
+- Published TypeScript SDK under unscoped package name `orbit-sdk-typescript` to remove blocked `@orbit` scope dependency.
+- Updated release runbook package naming to match published npm package.
+- Version alignment refresh across root package, TypeScript SDK, and Python SDK.
+
 ## [0.1.1] - 2026-03-03
 
 ### Added

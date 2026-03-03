@@ -12,7 +12,7 @@ This runbook assumes all validation gates are green and package versions are ali
 
 - npm trusted publishing is configured for:
   - `orbit-bus`
-  - `@orbit/sdk-typescript`
+  - `orbit-sdk-typescript`
 - PyPI trusted publishing is configured for:
   - `orbit-sdk`
 - GitHub Actions release workflow exists: `.github/workflows/release.yml`
