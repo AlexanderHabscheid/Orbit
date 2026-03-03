@@ -5,14 +5,12 @@ This runbook assumes all validation gates are green and package versions are ali
 ## Current Version Alignment
 
 - root npm package: `0.1.0`
-- TypeScript SDK package: `0.1.0`
 - Python SDK package: `0.1.0`
 
 ## Preconditions
 
 - npm trusted publishing is configured for:
   - `orbit-bus`
-  - `orbit-sdk-typescript`
 - PyPI trusted publishing is configured for:
   - `orbit-sdk`
 - GitHub Actions release workflow exists: `.github/workflows/release.yml`
@@ -61,14 +59,13 @@ cd ../..
 Update these files to the same target version:
 
 - `package.json`
-- `sdk/typescript/package.json`
 - `sdk/python/pyproject.toml`
 - `CHANGELOG.md` (move Unreleased entries under new version header)
 
 ## 4. Commit Release Payload
 
 ```bash
-git add package.json package-lock.json sdk/typescript/package.json sdk/python/pyproject.toml CHANGELOG.md
+git add package.json package-lock.json sdk/python/pyproject.toml CHANGELOG.md
 git commit -m "chore(release): v0.1.1"
 ```
 
@@ -87,7 +84,7 @@ Pushing tag `v0.1.1` triggers `.github/workflows/release.yml`.
 Verify:
 
 - GitHub Release created with attached artifacts
-- npm publish success for both packages
+- npm publish success for `orbit-bus`
 - PyPI publish success for `orbit-sdk`
 - Provenance attestations are attached
 
