@@ -57,6 +57,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ""
 
   pypi-publish:
     runs-on: ubuntu-latest

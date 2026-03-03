@@ -6,6 +6,12 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-03-03
+
+### Changed
+- `npm-publish` release step now clears `NODE_AUTH_TOKEN` to force npm trusted publishing via OIDC.
+- Root and Python package versions bumped to `0.1.4` for a fresh release validation tag.
+
 ## [0.1.3] - 2026-03-03
 
 ### Changed
