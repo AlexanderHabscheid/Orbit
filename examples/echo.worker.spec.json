@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "description": "Persistent worker echo service",
+  "methods": {
+    "upper": {
+      "description": "Uses one long-lived worker process for low-latency calls",
+      "transport": "worker",
+      "command": "node",
+      "args": ["tests/fixtures/echo_worker.js"],
+      "timeout_ms": 3000
+    }
+  }
+}
