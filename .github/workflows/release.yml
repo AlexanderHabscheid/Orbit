@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-artifacts]
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: orbit-release-bundles
           path: dist-assets
