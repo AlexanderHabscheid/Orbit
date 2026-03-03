@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "description": "External HTTP echo service",
+  "methods": {
+    "upper": {
+      "description": "Forwards to external HTTP endpoint",
+      "transport": "http",
+      "http_endpoint": "http://127.0.0.1:9000/upper",
+      "http_method": "POST",
+      "timeout_ms": 3000
+    }
+  }
+}

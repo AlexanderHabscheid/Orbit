@@ -1,0 +1,18 @@
+{
+  "agent.loop": {
+    "mode": "replicate",
+    "subject": "orbit.cell.channels.agent.loop"
+  },
+  "agent.audit": {
+    "mode": "global_only",
+    "subject": "orbit.cell.audit.events"
+  },
+  "agent.metrics": {
+    "mode": "global_only",
+    "subject": "orbit.cell.metrics.events"
+  },
+  "agent.debug": {
+    "mode": "local_only",
+    "subject": "orbit.cell.debug.events"
+  }
+}
