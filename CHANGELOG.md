@@ -6,6 +6,12 @@ This project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-03
+
+### Changed
+- Release verification patch to validate `orbitai-cli` trusted npm publishing via GitHub Actions.
+- Root and Python package versions bumped to `0.2.1`.
+
 ## [0.2.0] - 2026-03-03
 
 ### Added
