@@ -18,6 +18,17 @@ ORBIT is a local-first agent message bus CLI built on NATS with:
 - External Orbit API service (`orbit api`)
 - Externalized HTTP and persistent-worker method transports
 
+## Orbit vs Velocity
+
+`Velocity` is a separate runtime from Orbit. It is a WebSocket proxy/control-plane tool focused on reducing frame and byte overhead while protecting latency for agent-to-upstream traffic.
+
+`Orbit` is the NATS-native local-first message bus/runtime in this repository (`orbit` + `echocore`) for RPC, pub/sub, service discovery, tracing, and API integration.
+
+Use them together when needed:
+
+- Use Velocity on the edge WebSocket path.
+- Use Orbit for service bus and agent workflow routing.
+
 ## Install
 
 ```bash

@@ -1,7 +1,7 @@
 {
   "name": "orbitai-cli",
   "version": "0.2.1",
-  "description": "ORBIT local agent message bus CLI powered by NATS",
+  "description": "NATS-native local-first agent bus/runtime (orbit + echocore) for RPC, pub/sub, discovery, tracing, and API integration",
   "repository": {
     "type": "git",
     "url": "https://github.com/AlexanderHabscheid/Orbit"
