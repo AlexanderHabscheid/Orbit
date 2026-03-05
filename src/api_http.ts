@@ -42,12 +42,15 @@ function statusForCode(code: string): number {
       return 401;
     case "FORBIDDEN":
     case "FORBIDDEN_BIND_HOST":
+    case "CHALLENGE_REQUIRED":
+    case "CHALLENGE_FAILED":
       return 403;
     case "NOT_FOUND":
       return 404;
     case "REQUEST_TIMEOUT":
     case "TIMEOUT":
     case "METHOD_TIMEOUT":
+    case "ENVELOPE_EXPIRED":
       return 408;
     case "PAYLOAD_TOO_LARGE":
     case "REQUEST_TOO_LARGE":
@@ -58,6 +61,7 @@ function statusForCode(code: string): number {
     case "OVERLOADED":
     case "API_OVERLOADED":
     case "AGENT_OVERLOADED":
+    case "REPLAY_DETECTED":
       return 429;
     case "METHOD_NOT_ALLOWED":
       return 405;
@@ -67,7 +71,13 @@ function statusForCode(code: string): number {
     case "BAD_JSON_INPUT":
     case "INVALID_SPEC":
     case "SCHEMA_VALIDATION_FAILED":
+    case "INVALID_ENVELOPE":
+    case "INVALID_ENVELOPE_HASH":
+    case "INVALID_ENVELOPE_SIGNATURE":
+    case "ENVELOPE_SIGNATURE_REQUIRED":
       return 400;
+    case "UNKNOWN_SIGNER":
+      return 401;
     default:
       return 500;
   }
