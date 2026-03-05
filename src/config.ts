@@ -105,6 +105,95 @@ function fromObject(obj: Record<string, unknown>): Partial<OrbitConfig> {
       }
     };
   }
+  if (obj.federation && typeof obj.federation === "object") {
+    const fedRaw = obj.federation as Record<string, unknown>;
+    const reputationRaw =
+      fedRaw.reputation && typeof fedRaw.reputation === "object" ? (fedRaw.reputation as Record<string, unknown>) : {};
+    const challengeRaw =
+      fedRaw.challenge && typeof fedRaw.challenge === "object" ? (fedRaw.challenge as Record<string, unknown>) : {};
+    const e2eeRaw = fedRaw.e2ee && typeof fedRaw.e2ee === "object" ? (fedRaw.e2ee as Record<string, unknown>) : {};
+    const e2eeKeysRaw =
+      e2eeRaw.keys && typeof e2eeRaw.keys === "object" ? (e2eeRaw.keys as Record<string, unknown>) : {};
+    const signingRaw =
+      fedRaw.signing && typeof fedRaw.signing === "object" ? (fedRaw.signing as Record<string, unknown>) : {};
+    const trustedKeysRaw =
+      signingRaw.trustedKeys && typeof signingRaw.trustedKeys === "object"
+        ? (signingRaw.trustedKeys as Record<string, unknown>)
+        : {};
+    out.federation = {
+      enabled: typeof fedRaw.enabled === "boolean" ? fedRaw.enabled : false,
+      localDomain: typeof fedRaw.localDomain === "string" ? fedRaw.localDomain : "localhost",
+      defaultDeliveryClass:
+        fedRaw.defaultDeliveryClass === "durable" || fedRaw.defaultDeliveryClass === "auditable"
+          ? fedRaw.defaultDeliveryClass
+          : "best_effort",
+      discoverWellKnown: typeof fedRaw.discoverWellKnown === "boolean" ? fedRaw.discoverWellKnown : true,
+      discoveryTimeoutMs: typeof fedRaw.discoveryTimeoutMs === "number" ? fedRaw.discoveryTimeoutMs : 3000,
+      requestTimeoutMs: typeof fedRaw.requestTimeoutMs === "number" ? fedRaw.requestTimeoutMs : 5000,
+      replayWindowSec: typeof fedRaw.replayWindowSec === "number" ? fedRaw.replayWindowSec : 300,
+      inboundAuthToken: typeof fedRaw.inboundAuthToken === "string" ? fedRaw.inboundAuthToken : undefined,
+      allowlist: Array.isArray(fedRaw.allowlist) ? fedRaw.allowlist.filter((v): v is string => typeof v === "string") : [],
+      blocklist: Array.isArray(fedRaw.blocklist) ? fedRaw.blocklist.filter((v): v is string => typeof v === "string") : [],
+      signing: {
+        keyId: typeof signingRaw.keyId === "string" ? signingRaw.keyId : undefined,
+        secret: typeof signingRaw.secret === "string" ? signingRaw.secret : undefined,
+        algorithm: signingRaw.algorithm === "ed25519" ? "ed25519" : "hmac-sha256",
+        privateKeyFile: typeof signingRaw.privateKeyFile === "string" ? signingRaw.privateKeyFile : undefined,
+        publicKeyFile: typeof signingRaw.publicKeyFile === "string" ? signingRaw.publicKeyFile : undefined,
+        discoverJwks: typeof signingRaw.discoverJwks === "boolean" ? signingRaw.discoverJwks : true,
+        requireSignedInbound: typeof signingRaw.requireSignedInbound === "boolean" ? signingRaw.requireSignedInbound : false,
+        trustedKeys: Object.fromEntries(
+          Object.entries(trustedKeysRaw).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        )
+      },
+      oauth: {
+        enabled: typeof fedRaw.oauth === "object" && fedRaw.oauth !== null
+          ? Boolean((fedRaw.oauth as Record<string, unknown>).enabled)
+          : false,
+        issuer:
+          typeof fedRaw.oauth === "object" && fedRaw.oauth !== null && typeof (fedRaw.oauth as Record<string, unknown>).issuer === "string"
+            ? ((fedRaw.oauth as Record<string, unknown>).issuer as string)
+            : "http://127.0.0.1:8787",
+        audience:
+          typeof fedRaw.oauth === "object" && fedRaw.oauth !== null && typeof (fedRaw.oauth as Record<string, unknown>).audience === "string"
+            ? ((fedRaw.oauth as Record<string, unknown>).audience as string)
+            : "orbit-federation",
+        tokenTtlSec:
+          typeof fedRaw.oauth === "object" && fedRaw.oauth !== null && typeof (fedRaw.oauth as Record<string, unknown>).tokenTtlSec === "number"
+            ? ((fedRaw.oauth as Record<string, unknown>).tokenTtlSec as number)
+            : 3600,
+        clients:
+          typeof fedRaw.oauth === "object" &&
+          fedRaw.oauth !== null &&
+          typeof (fedRaw.oauth as Record<string, unknown>).clients === "object" &&
+          (fedRaw.oauth as Record<string, unknown>).clients !== null
+            ? Object.fromEntries(
+                Object.entries((fedRaw.oauth as Record<string, unknown>).clients as Record<string, unknown>).filter(
+                  (entry): entry is [string, string] => typeof entry[1] === "string"
+                )
+              )
+            : {}
+      },
+      reputation: {
+        enabled: typeof reputationRaw.enabled === "boolean" ? reputationRaw.enabled : true,
+        defaultScore: typeof reputationRaw.defaultScore === "number" ? reputationRaw.defaultScore : 50,
+        minScore: typeof reputationRaw.minScore === "number" ? reputationRaw.minScore : 20,
+        trustOnFirstSeen: typeof reputationRaw.trustOnFirstSeen === "boolean" ? reputationRaw.trustOnFirstSeen : false
+      },
+      challenge: {
+        enabled: typeof challengeRaw.enabled === "boolean" ? challengeRaw.enabled : true,
+        difficulty: typeof challengeRaw.difficulty === "number" ? challengeRaw.difficulty : 3,
+        ttlSec: typeof challengeRaw.ttlSec === "number" ? challengeRaw.ttlSec : 120,
+        graceSec: typeof challengeRaw.graceSec === "number" ? challengeRaw.graceSec : 900
+      },
+      e2ee: {
+        enabled: typeof e2eeRaw.enabled === "boolean" ? e2eeRaw.enabled : false,
+        keys: Object.fromEntries(
+          Object.entries(e2eeKeysRaw).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        )
+      }
+    };
+  }
   return out;
 }
 
@@ -118,6 +207,31 @@ function resolveContext(
 }
 
 export function loadConfig(cwd: string): OrbitConfig {
+  let trustedFederationKeysEnv: Record<string, string> = {};
+  const trustedKeysJson = process.env.ORBIT_FEDERATION_TRUSTED_KEYS_JSON;
+  if (trustedKeysJson) {
+    try {
+      const parsed = JSON.parse(trustedKeysJson) as Record<string, unknown>;
+      trustedFederationKeysEnv = Object.fromEntries(
+        Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      );
+    } catch {
+      trustedFederationKeysEnv = {};
+    }
+  }
+  let e2eeKeysEnv: Record<string, string> = {};
+  const e2eeKeysJson = process.env.ORBIT_FEDERATION_E2EE_KEYS_JSON;
+  if (e2eeKeysJson) {
+    try {
+      const parsed = JSON.parse(e2eeKeysJson) as Record<string, unknown>;
+      e2eeKeysEnv = Object.fromEntries(
+        Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      );
+    } catch {
+      e2eeKeysEnv = {};
+    }
+  }
+
   const envAllowedHosts = (process.env.ORBIT_API_ALLOWED_HOSTS ?? "127.0.0.1,localhost,::1")
     .split(",")
     .map((v) => v.trim())
@@ -162,6 +276,69 @@ export function loadConfig(cwd: string): OrbitConfig {
         caFile: process.env.ORBIT_API_TLS_CA_FILE,
         requestClientCert: process.env.ORBIT_API_TLS_REQUEST_CLIENT_CERT === "1",
         requireClientCert: process.env.ORBIT_API_TLS_REQUIRE_CLIENT_CERT === "1"
+      }
+    },
+    federation: {
+      enabled: process.env.ORBIT_FEDERATION_ENABLED === "1",
+      localDomain: process.env.ORBIT_FEDERATION_LOCAL_DOMAIN ?? "localhost",
+      defaultDeliveryClass:
+        process.env.ORBIT_FEDERATION_DEFAULT_DELIVERY_CLASS === "durable" ||
+        process.env.ORBIT_FEDERATION_DEFAULT_DELIVERY_CLASS === "auditable"
+          ? process.env.ORBIT_FEDERATION_DEFAULT_DELIVERY_CLASS
+          : "best_effort",
+      discoverWellKnown: process.env.ORBIT_FEDERATION_DISCOVER_WELL_KNOWN
+        ? process.env.ORBIT_FEDERATION_DISCOVER_WELL_KNOWN === "1"
+        : true,
+      discoveryTimeoutMs: Number(process.env.ORBIT_FEDERATION_DISCOVERY_TIMEOUT_MS ?? "3000"),
+      requestTimeoutMs: Number(process.env.ORBIT_FEDERATION_REQUEST_TIMEOUT_MS ?? "5000"),
+      replayWindowSec: Number(process.env.ORBIT_FEDERATION_REPLAY_WINDOW_SEC ?? "300"),
+      inboundAuthToken: process.env.ORBIT_FEDERATION_INBOUND_TOKEN,
+      allowlist: (process.env.ORBIT_FEDERATION_ALLOWLIST ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean),
+      blocklist: (process.env.ORBIT_FEDERATION_BLOCKLIST ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean),
+      signing: {
+        keyId: process.env.ORBIT_FEDERATION_KEY_ID,
+        secret: process.env.ORBIT_FEDERATION_SIGNING_SECRET,
+        algorithm: process.env.ORBIT_FEDERATION_SIGNING_ALGORITHM === "ed25519" ? "ed25519" : "hmac-sha256",
+        privateKeyFile: process.env.ORBIT_FEDERATION_PRIVATE_KEY_FILE,
+        publicKeyFile: process.env.ORBIT_FEDERATION_PUBLIC_KEY_FILE,
+        discoverJwks: process.env.ORBIT_FEDERATION_DISCOVER_JWKS
+          ? process.env.ORBIT_FEDERATION_DISCOVER_JWKS === "1"
+          : true,
+        requireSignedInbound: process.env.ORBIT_FEDERATION_REQUIRE_SIGNED_INBOUND === "1",
+        trustedKeys: trustedFederationKeysEnv
+      },
+      oauth: {
+        enabled: process.env.ORBIT_FEDERATION_OAUTH_ENABLED === "1",
+        issuer: process.env.ORBIT_FEDERATION_OAUTH_ISSUER ?? "http://127.0.0.1:8787",
+        audience: process.env.ORBIT_FEDERATION_OAUTH_AUDIENCE ?? "orbit-federation",
+        tokenTtlSec: Number(process.env.ORBIT_FEDERATION_OAUTH_TOKEN_TTL_SEC ?? "3600"),
+        clients: {}
+      },
+      reputation: {
+        enabled: process.env.ORBIT_FEDERATION_REPUTATION_ENABLED
+          ? process.env.ORBIT_FEDERATION_REPUTATION_ENABLED === "1"
+          : true,
+        defaultScore: Number(process.env.ORBIT_FEDERATION_REPUTATION_DEFAULT_SCORE ?? "50"),
+        minScore: Number(process.env.ORBIT_FEDERATION_REPUTATION_MIN_SCORE ?? "20"),
+        trustOnFirstSeen: process.env.ORBIT_FEDERATION_REPUTATION_TRUST_FIRST_SEEN === "1"
+      },
+      challenge: {
+        enabled: process.env.ORBIT_FEDERATION_CHALLENGE_ENABLED
+          ? process.env.ORBIT_FEDERATION_CHALLENGE_ENABLED === "1"
+          : true,
+        difficulty: Number(process.env.ORBIT_FEDERATION_CHALLENGE_DIFFICULTY ?? "3"),
+        ttlSec: Number(process.env.ORBIT_FEDERATION_CHALLENGE_TTL_SEC ?? "120"),
+        graceSec: Number(process.env.ORBIT_FEDERATION_CHALLENGE_GRACE_SEC ?? "900")
+      },
+      e2ee: {
+        enabled: process.env.ORBIT_FEDERATION_E2EE_ENABLED === "1",
+        keys: e2eeKeysEnv
       }
     },
     runtime: {
@@ -255,6 +432,71 @@ export function loadConfig(cwd: string): OrbitConfig {
           : undefined,
         requestClientCert: merged.api?.tls?.requestClientCert ?? defaults.api.tls.requestClientCert,
         requireClientCert: merged.api?.tls?.requireClientCert ?? defaults.api.tls.requireClientCert
+      }
+    },
+    federation: {
+      enabled: merged.federation?.enabled ?? defaults.federation.enabled,
+      localDomain: (merged.federation?.localDomain ?? defaults.federation.localDomain).trim() || "localhost",
+      defaultDeliveryClass: merged.federation?.defaultDeliveryClass ?? defaults.federation.defaultDeliveryClass,
+      discoverWellKnown: merged.federation?.discoverWellKnown ?? defaults.federation.discoverWellKnown,
+      discoveryTimeoutMs: Math.max(
+        250,
+        Math.floor(merged.federation?.discoveryTimeoutMs ?? defaults.federation.discoveryTimeoutMs)
+      ),
+      requestTimeoutMs: Math.max(
+        250,
+        Math.floor(merged.federation?.requestTimeoutMs ?? defaults.federation.requestTimeoutMs)
+      ),
+      replayWindowSec: Math.max(30, Math.floor(merged.federation?.replayWindowSec ?? defaults.federation.replayWindowSec)),
+      inboundAuthToken: merged.federation?.inboundAuthToken ?? defaults.federation.inboundAuthToken,
+      allowlist: (merged.federation?.allowlist ?? defaults.federation.allowlist).map((v) => v.trim()).filter(Boolean),
+      blocklist: (merged.federation?.blocklist ?? defaults.federation.blocklist).map((v) => v.trim()).filter(Boolean),
+      signing: {
+        keyId: merged.federation?.signing?.keyId ?? defaults.federation.signing.keyId,
+        secret: merged.federation?.signing?.secret ?? defaults.federation.signing.secret,
+        algorithm: merged.federation?.signing?.algorithm ?? defaults.federation.signing.algorithm,
+        privateKeyFile: (merged.federation?.signing?.privateKeyFile ?? defaults.federation.signing.privateKeyFile)
+          ? expandHome(merged.federation?.signing?.privateKeyFile ?? defaults.federation.signing.privateKeyFile ?? "")
+          : undefined,
+        publicKeyFile: (merged.federation?.signing?.publicKeyFile ?? defaults.federation.signing.publicKeyFile)
+          ? expandHome(merged.federation?.signing?.publicKeyFile ?? defaults.federation.signing.publicKeyFile ?? "")
+          : undefined,
+        discoverJwks: merged.federation?.signing?.discoverJwks ?? defaults.federation.signing.discoverJwks,
+        requireSignedInbound:
+          merged.federation?.signing?.requireSignedInbound ?? defaults.federation.signing.requireSignedInbound,
+        trustedKeys: {
+          ...defaults.federation.signing.trustedKeys,
+          ...(merged.federation?.signing?.trustedKeys ?? {})
+        }
+      },
+      oauth: {
+        enabled: merged.federation?.oauth?.enabled ?? defaults.federation.oauth.enabled,
+        issuer: (merged.federation?.oauth?.issuer ?? defaults.federation.oauth.issuer).trim() || "http://127.0.0.1:8787",
+        audience: (merged.federation?.oauth?.audience ?? defaults.federation.oauth.audience).trim() || "orbit-federation",
+        tokenTtlSec: Math.max(60, Math.floor(merged.federation?.oauth?.tokenTtlSec ?? defaults.federation.oauth.tokenTtlSec)),
+        clients: {
+          ...defaults.federation.oauth.clients,
+          ...(merged.federation?.oauth?.clients ?? {})
+        }
+      },
+      reputation: {
+        enabled: merged.federation?.reputation?.enabled ?? defaults.federation.reputation.enabled,
+        defaultScore: Math.max(0, Math.floor(merged.federation?.reputation?.defaultScore ?? defaults.federation.reputation.defaultScore)),
+        minScore: Math.max(0, Math.floor(merged.federation?.reputation?.minScore ?? defaults.federation.reputation.minScore)),
+        trustOnFirstSeen: merged.federation?.reputation?.trustOnFirstSeen ?? defaults.federation.reputation.trustOnFirstSeen
+      },
+      challenge: {
+        enabled: merged.federation?.challenge?.enabled ?? defaults.federation.challenge.enabled,
+        difficulty: Math.max(1, Math.floor(merged.federation?.challenge?.difficulty ?? defaults.federation.challenge.difficulty)),
+        ttlSec: Math.max(30, Math.floor(merged.federation?.challenge?.ttlSec ?? defaults.federation.challenge.ttlSec)),
+        graceSec: Math.max(60, Math.floor(merged.federation?.challenge?.graceSec ?? defaults.federation.challenge.graceSec))
+      },
+      e2ee: {
+        enabled: merged.federation?.e2ee?.enabled ?? defaults.federation.e2ee.enabled,
+        keys: {
+          ...defaults.federation.e2ee.keys,
+          ...(merged.federation?.e2ee?.keys ?? {})
+        }
       }
     },
     runtime: {
