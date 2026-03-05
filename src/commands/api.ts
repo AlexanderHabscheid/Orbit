@@ -10,6 +10,11 @@ import { randomId } from "../util.js";
 import { ApiErrorResponse, ApiHttpError, ApiSuccessResponse, normalizeApiError } from "../api_http.js";
 import { OrbitError } from "../errors.js";
 import { incCounter, observeHistogram, renderPrometheusMetrics, setGauge } from "../metrics.js";
+import { handleFederationIngress } from "../federation/ingress.js";
+import { localJwks } from "../identity/jwks.js";
+import { issueClientCredentialsToken, oauthMetadata, verifyBearerToken } from "../identity/oauth.js";
+import { adjustDomainReputation, getDomainReputation, hasSeenDomain, isInChallengeGrace, markChallengeGrace } from "../reputation/store.js";
+import { assertChallengeSolved, issueChallenge } from "../federation/challenge.js";
 
 interface HealthResponse {
   ok: true;
@@ -55,6 +60,19 @@ function extractBearerToken(req: http.IncomingMessage): string | undefined {
   return undefined;
 }
 
+function readBasicClientCredentials(req: http.IncomingMessage): { clientId: string; clientSecret: string } | null {
+  const auth = req.headers.authorization;
+  if (typeof auth !== "string" || !auth.startsWith("Basic ")) return null;
+  try {
+    const decoded = Buffer.from(auth.slice("Basic ".length), "base64").toString("utf-8");
+    const idx = decoded.indexOf(":");
+    if (idx <= 0) return null;
+    return { clientId: decoded.slice(0, idx), clientSecret: decoded.slice(idx + 1) };
+  } catch {
+    return null;
+  }
+}
+
 function ensureAuthorized(req: http.IncomingMessage, config: OrbitConfig): void {
   const requiredToken = config.api.authToken;
   if (requiredToken && extractBearerToken(req) !== requiredToken) {
@@ -66,6 +84,69 @@ function ensureAuthorized(req: http.IncomingMessage, config: OrbitConfig): void 
       throw new ApiHttpError(401, "UNAUTHORIZED", "valid client TLS certificate is required");
     }
   }
+}
+
+function ensureFederationAuthorized(req: http.IncomingMessage, config: OrbitConfig): void {
+  const requiredToken = config.federation.inboundAuthToken;
+  const bearer = extractBearerToken(req);
+  if (requiredToken && bearer === requiredToken) return;
+  if (config.federation.oauth.enabled && bearer) {
+    verifyBearerToken(config, bearer);
+    return;
+  }
+  if (requiredToken) {
+    throw new ApiHttpError(401, "UNAUTHORIZED", "missing or invalid federation token");
+  }
+  if (config.federation.oauth.enabled) {
+    throw new ApiHttpError(401, "UNAUTHORIZED", "missing bearer token");
+  }
+}
+
+function parseDomain(agentRef: string): string {
+  const at = agentRef.lastIndexOf("@");
+  if (at <= 0 || at >= agentRef.length - 1) {
+    throw new ApiHttpError(400, "BAD_ARGS", "federation sender must be in the form agent@domain");
+  }
+  return agentRef.slice(at + 1).toLowerCase();
+}
+
+function enforceAdmissionPolicy(
+  req: http.IncomingMessage,
+  config: OrbitConfig,
+  senderDomain: string
+): void {
+  if (!config.federation.reputation.enabled || !config.federation.challenge.enabled) return;
+  if (config.federation.allowlist.includes(senderDomain)) return;
+  if (isInChallengeGrace(config, senderDomain)) return;
+
+  const seen = hasSeenDomain(config, senderDomain);
+  if (!seen && config.federation.reputation.trustOnFirstSeen) return;
+
+  const rep = getDomainReputation(config, senderDomain);
+  if (rep.score >= config.federation.reputation.minScore) return;
+
+  const challengeId = req.headers["x-orbit-challenge-id"]?.toString();
+  const challengeSolution = req.headers["x-orbit-challenge-solution"]?.toString();
+  if (challengeId && challengeSolution) {
+    try {
+      assertChallengeSolved(senderDomain, challengeId, challengeSolution);
+      markChallengeGrace(config, senderDomain, config.federation.challenge.graceSec);
+      adjustDomainReputation(config, senderDomain, 5);
+      return;
+    } catch {
+      adjustDomainReputation(config, senderDomain, -8);
+      throw new ApiHttpError(403, "CHALLENGE_FAILED", "challenge solution was invalid");
+    }
+  }
+  const challenge = issueChallenge(
+    senderDomain,
+    config.federation.challenge.difficulty,
+    config.federation.challenge.ttlSec
+  );
+  adjustDomainReputation(config, senderDomain, -3);
+  throw new ApiHttpError(403, "CHALLENGE_REQUIRED", "challenge required for sender domain", {
+    challenge
+  });
 }
 
 async function readJsonBody(req: http.IncomingMessage, maxBytes: number): Promise<unknown> {
@@ -86,6 +167,20 @@ async function readJsonBody(req: http.IncomingMessage, maxBytes: number): Promis
   } catch {
     throw new ApiHttpError(400, "BAD_JSON", "invalid JSON body");
   }
+}
+
+async function readBodyText(req: http.IncomingMessage, maxBytes: number): Promise<string> {
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+    totalBytes += buf.length;
+    if (totalBytes > maxBytes) {
+      throw new ApiHttpError(413, "PAYLOAD_TOO_LARGE", `request exceeds max body size ${maxBytes} bytes`);
+    }
+    chunks.push(buf);
+  }
+  return Buffer.concat(chunks).toString("utf-8").trim();
 }
 
 function ensureBindHostAllowed(config: OrbitConfig, host: string): void {
@@ -193,8 +288,83 @@ export async function cmdApi(
           return;
         }
 
+        if (req.method === "GET" && req.url === "/.well-known/jwks.json") {
+          status = 200;
+          writeJson(res, 200, localJwks(config) as unknown as AnyResponse);
+          return;
+        }
+
+        if (req.method === "GET" && req.url === "/.well-known/oauth-authorization-server") {
+          status = 200;
+          writeJson(res, 200, oauthMetadata(config) as unknown as AnyResponse);
+          return;
+        }
+
+        if (req.method === "POST" && req.url === "/oauth/token") {
+          const basic = readBasicClientCredentials(req);
+          const contentType = String(req.headers["content-type"] ?? "");
+          const parsed = contentType.includes("application/x-www-form-urlencoded")
+            ? Object.fromEntries(new URLSearchParams(await readBodyText(req, config.runtime.apiMaxBodyBytes)).entries())
+            : parseObjectPayload(await readJsonBody(req, config.runtime.apiMaxBodyBytes));
+          const grantType = String(parsed.grant_type ?? "");
+          if (grantType !== "client_credentials") {
+            throw new ApiHttpError(400, "BAD_ARGS", "oauth grant_type must be client_credentials");
+          }
+          const clientId = basic?.clientId ?? String(parsed.client_id ?? "");
+          const clientSecret = basic?.clientSecret ?? String(parsed.client_secret ?? "");
+          if (!clientId || !clientSecret) {
+            throw new ApiHttpError(401, "UNAUTHORIZED", "missing oauth client credentials");
+          }
+          status = 200;
+          writeJson(
+            res,
+            200,
+            issueClientCredentialsToken(config, {
+              clientId,
+              clientSecret,
+              scope: typeof parsed.scope === "string" ? parsed.scope : undefined
+            }) as unknown as AnyResponse
+          );
+          return;
+        }
+
+        if (req.method === "POST" && req.url === "/v1/federation/challenge") {
+          const payload = parseObjectPayload(await readJsonBody(req, config.runtime.apiMaxBodyBytes));
+          const from = String(payload.from ?? "");
+          const domain = parseDomain(from);
+          const out = issueChallenge(domain, config.federation.challenge.difficulty, config.federation.challenge.ttlSec);
+          status = 200;
+          writeJson(res, 200, out as unknown as AnyResponse);
+          return;
+        }
+
         if (req.method !== "POST" || !req.url) {
           throw new ApiHttpError(405, "METHOD_NOT_ALLOWED", "use POST /v1/<action>");
+        }
+
+        if (req.method === "POST" && req.url.split("?")[0] === "/v1/federation/send") {
+          if (!config.federation.enabled) {
+            throw new ApiHttpError(403, "FORBIDDEN", "federation is disabled");
+          }
+          ensureFederationAuthorized(req, config);
+          if (inFlight >= config.runtime.apiMaxConcurrent) {
+            throw new ApiHttpError(429, "API_OVERLOADED", "api concurrency limit reached");
+          }
+          inFlight += 1;
+          entered = true;
+          actionLabel = "federation_send";
+          setGauge("orbit_api_inflight", inFlight);
+          const payload = parseObjectPayload(await readJsonBody(req, config.runtime.apiMaxBodyBytes));
+          const from = String(payload.from ?? "");
+          const senderDomain = parseDomain(from);
+          enforceAdmissionPolicy(req, config, senderDomain);
+          const out = await withTimeout(
+            handleFederationIngress(config, nc, payload),
+            config.runtime.apiRequestTimeoutMs
+          );
+          status = 200;
+          writeJson(res, 200, { id: requestId, ok: true, payload: out });
+          return;
         }
 
         ensureAuthorized(req, config);
