@@ -103,6 +103,63 @@ class OrbitClient:
             payload["timeoutMs"] = timeout_ms
         return self._request("inspect", payload)
 
+    def federate(
+        self,
+        to: str,
+        target: str,
+        body: Any,
+        endpoint: Optional[str] = None,
+        timeout_ms: Optional[int] = None,
+        delivery_class: Optional[str] = None,
+        e2ee_key_id: Optional[str] = None,
+    ) -> Any:
+        payload: Dict[str, Any] = {"to": to, "target": target, "body": body}
+        if endpoint is not None:
+            payload["endpoint"] = endpoint
+        if timeout_ms is not None:
+            payload["timeoutMs"] = timeout_ms
+        if delivery_class is not None:
+            payload["deliveryClass"] = delivery_class
+        if e2ee_key_id is not None:
+            payload["e2eeKeyId"] = e2ee_key_id
+        return self._request("federate", payload)
+
+    def bridge(
+        self,
+        protocol: str,
+        message: Dict[str, Any],
+        dispatch: Optional[bool] = None,
+        to: Optional[str] = None,
+        target: Optional[str] = None,
+    ) -> Any:
+        payload: Dict[str, Any] = {"protocol": protocol, "message": message}
+        if dispatch is not None:
+            payload["dispatch"] = dispatch
+        if to is not None:
+            payload["to"] = to
+        if target is not None:
+            payload["target"] = target
+        return self._request("bridge", payload)
+
+    def abuse_report(
+        self,
+        reporter: str,
+        subject: str,
+        reason: str,
+        severity: Optional[str] = None,
+        evidence: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        payload: Dict[str, Any] = {
+            "reporter": reporter,
+            "subject": subject,
+            "reason": reason,
+        }
+        if severity is not None:
+            payload["severity"] = severity
+        if evidence is not None:
+            payload["evidence"] = evidence
+        return self._request("abuse_report", payload)
+
     def _request(self, action: str, payload: Dict[str, Any]) -> Any:
         data = json.dumps(payload).encode("utf-8")
         url = f"{self.base_url.rstrip('/')}/v1/{action}"
