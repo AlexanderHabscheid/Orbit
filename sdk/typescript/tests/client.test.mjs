@@ -86,3 +86,35 @@ test("OrbitClient sends call payload fields with API parity", async () => {
   });
   server.close();
 });
+
+test("OrbitClient sends federate payload with e2ee field", async () => {
+  let path = "";
+  let received = null;
+  const server = http.createServer(async (req, res) => {
+    path = req.url;
+    const chunks = [];
+    for await (const chunk of req) chunks.push(Buffer.from(chunk));
+    received = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+    res.statusCode = 200;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ id: "1", ok: true, payload: { ok: true } }));
+  });
+  const baseUrl = await listen(server);
+  const client = new OrbitClient({ baseUrl });
+  await client.federate({
+    to: "agent@example.org",
+    target: "svc.method",
+    body: { x: 1 },
+    deliveryClass: "durable",
+    e2eeKeyId: "shared-1"
+  });
+  assert.equal(path, "/v1/federate");
+  assert.deepEqual(received, {
+    to: "agent@example.org",
+    target: "svc.method",
+    body: { x: 1 },
+    deliveryClass: "durable",
+    e2eeKeyId: "shared-1"
+  });
+  server.close();
+});
