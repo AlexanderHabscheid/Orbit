@@ -7,6 +7,9 @@ test("actionFromApiPath resolves valid routes", () => {
   assert.equal(actionFromApiPath("/v1/publish"), "publish");
   assert.equal(actionFromApiPath("/v1/inspect"), "inspect");
   assert.equal(actionFromApiPath("/v1/ping"), "ping");
+  assert.equal(actionFromApiPath("/v1/federate"), "federate");
+  assert.equal(actionFromApiPath("/v1/bridge"), "bridge");
+  assert.equal(actionFromApiPath("/v1/abuse_report"), "abuse_report");
 });
 
 test("actionFromApiPath rejects invalid routes", () => {
@@ -46,4 +49,26 @@ test("validateActionPayload enforces strict call/publish/inspect payloads", () =
   assert.throws(() => validateActionPayload("call", { target: "svc.method" }));
   assert.throws(() => validateActionPayload("publish", { topic: "events.x" }));
   assert.throws(() => validateActionPayload("inspect", { service: "", timeoutMs: 0 }));
+  assert.doesNotThrow(() =>
+    validateActionPayload("federate", {
+      to: "worker@example.org",
+      target: "svc.method",
+      body: { ok: true },
+      deliveryClass: "durable"
+    })
+  );
+  assert.throws(() => validateActionPayload("federate", { to: "bad", target: "x", body: {} }));
+  assert.doesNotThrow(() =>
+    validateActionPayload("bridge", {
+      protocol: "a2a",
+      message: { payload: { x: 1 } }
+    })
+  );
+  assert.doesNotThrow(() =>
+    validateActionPayload("abuse_report", {
+      reporter: "ops@example.org",
+      subject: "bot@evil.org",
+      reason: "spam"
+    })
+  );
 });
