@@ -10,6 +10,9 @@ import { randomId } from "./util.js";
 import { OrbitApiAction, validateActionPayload } from "./api_contract.js";
 import { executeRpcCall } from "./rpc_call.js";
 import { prefixedSubject } from "./subjects.js";
+import { sendFederatedMessage } from "./federation/transport.js";
+import { normalizeBridgeMessage } from "./bridge/protocols.js";
+import { fileAbuseReport } from "./reputation/abuse.js";
 
 export async function executeOrbitAction(
   config: OrbitConfig,
@@ -28,6 +31,12 @@ export async function executeOrbitAction(
       return executePublish(config, nc, payload, actor);
     case "inspect":
       return executeInspect(config, nc, payload);
+    case "federate":
+      return executeFederate(config, payload);
+    case "bridge":
+      return executeBridge(config, nc, payload, actor);
+    case "abuse_report":
+      return executeAbuseReport(config, nc, payload);
     default:
       throw new OrbitError("BAD_ARGS", `unknown action: ${String(action)}`);
   }
@@ -145,4 +154,96 @@ async function executeInspect(config: OrbitConfig, nc: NatsConnection, payload: 
       }
     }
   }
+}
+
+async function executeFederate(config: OrbitConfig, payload: Record<string, unknown>): Promise<unknown> {
+  return sendFederatedMessage(config, {
+    to: String(payload.to ?? ""),
+    target: String(payload.target ?? ""),
+    body: payload.body,
+    endpoint: typeof payload.endpoint === "string" ? payload.endpoint : undefined,
+    runId: typeof payload.runId === "string" ? payload.runId : undefined,
+    timeoutMs: typeof payload.timeoutMs === "number" ? payload.timeoutMs : undefined,
+    deliveryClass:
+      payload.deliveryClass === "durable" || payload.deliveryClass === "auditable"
+        ? payload.deliveryClass
+        : payload.deliveryClass === "best_effort"
+          ? payload.deliveryClass
+          : undefined,
+    taskId: typeof payload.taskId === "string" ? payload.taskId : undefined,
+    threadId: typeof payload.threadId === "string" ? payload.threadId : undefined,
+    parentMessageId: typeof payload.parentMessageId === "string" ? payload.parentMessageId : undefined,
+    traceparent: typeof payload.traceparent === "string" ? payload.traceparent : undefined,
+    dedupeKey: typeof payload.dedupeKey === "string" ? payload.dedupeKey : undefined,
+    e2eeKeyId: typeof payload.e2eeKeyId === "string" ? payload.e2eeKeyId : undefined
+  });
+}
+
+async function executeBridge(
+  config: OrbitConfig,
+  nc: NatsConnection,
+  payload: Record<string, unknown>,
+  actor: "api" | "agent"
+): Promise<unknown> {
+  const protocol = payload.protocol === "mcp" ? "mcp" : "a2a";
+  const normalized = normalizeBridgeMessage({
+    protocol,
+    message: (payload.message ?? {}) as Record<string, unknown>
+  });
+
+  const dispatch = Boolean(payload.dispatch);
+  if (!dispatch) {
+    return {
+      ok: true,
+      protocol,
+      normalized
+    };
+  }
+
+  const to = typeof payload.to === "string" ? payload.to : undefined;
+  const target = typeof payload.target === "string" ? payload.target : normalized.targetHint;
+  if (to && target) {
+    return sendFederatedMessage(config, {
+      to,
+      target,
+      body: normalized.body,
+      taskId: normalized.a2a?.task_id,
+      threadId: normalized.a2a?.thread_id,
+      parentMessageId: normalized.a2a?.parent_message_id,
+      traceparent: normalized.a2a?.traceparent,
+      dedupeKey: normalized.a2a?.dedupe_key
+    });
+  }
+
+  const topic = prefixedSubject(config, "bridge", protocol, "ingress");
+  const env = createEnvelope({
+    kind: "event",
+    payload: normalized.body,
+    provenance: { bridge: protocol, actor: `orbit-${actor}` },
+    a2a: normalized.a2a
+  });
+  await publishSubject(nc, topic, encodeJson(env), {
+    durable: true,
+    dedupeKey: env.a2a?.dedupe_key ?? env.id,
+    timeoutMs: config.runtime.publishDurableTimeoutMs
+  });
+  await nc.flush();
+  return { ok: true, protocol, topic, envelope_id: env.id };
+}
+
+async function executeAbuseReport(config: OrbitConfig, nc: NatsConnection, payload: Record<string, unknown>): Promise<unknown> {
+  return fileAbuseReport(config, nc, {
+    reporter: String(payload.reporter ?? ""),
+    subject: String(payload.subject ?? ""),
+    reason: String(payload.reason ?? ""),
+    evidence: typeof payload.evidence === "object" && payload.evidence !== null
+      ? (payload.evidence as Record<string, unknown>)
+      : undefined,
+    severity:
+      payload.severity === "low" || payload.severity === "high" || payload.severity === "critical"
+        ? payload.severity
+        : payload.severity === "medium"
+          ? payload.severity
+          : undefined
+  });
 }
