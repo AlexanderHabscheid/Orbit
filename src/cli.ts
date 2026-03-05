@@ -20,6 +20,10 @@ import { cmdDlqInspect } from "./commands/dlq_inspect.js";
 import { cmdDlqPurge } from "./commands/dlq_purge.js";
 import { cmdInit } from "./commands/init.js";
 import { cmdDoctor } from "./commands/doctor.js";
+import { cmdFederate } from "./commands/federate.js";
+import { cmdFederation } from "./commands/federation.js";
+import { cmdBridge } from "./commands/bridge.js";
+import { cmdAbuseReport } from "./commands/abuse_report.js";
 import { runEchoCli } from "./echo/cli.js";
 import { argValue, hasFlag, parseJsonInput } from "./util.js";
 
@@ -43,6 +47,10 @@ Usage:
   orbit monitor [--service <svc>] [--interval-ms 2000] [--timeout-ms 1500] [--alerts] [--alert-latency-ms 250] [--alert-error-rate 0.05] [--alert-consecutive 3] [--alert-cooldown-s 30] [--once]
   orbit agent
   orbit api [--host 127.0.0.1] [--port 8787]
+  orbit federate <agent@domain> <svc>.<method> --json @req.json [--endpoint <url>] [--delivery-class best_effort|durable|auditable] [--timeout-ms 5000] [--run-id <id>] [--e2ee-key-id <id>]
+  orbit bridge <a2a|mcp> --json @msg.json [--dispatch] [--to <agent@domain>] [--target <svc>.<method>]
+  orbit abuse-report --reporter <agent@domain> --subject <agent@domain> --reason <text> [--severity low|medium|high|critical] [--evidence @json]
+  orbit federation <bootstrap|jwks|gen-e2ee-key|help> [--domain <domain>] [--client-id <id>] [--key-id <id>]
   orbit init [--profile single-agent|multi-agent|production] [--out-dir .] [--force]
   orbit doctor
   orbit cell <init|start|gateway|status> [...]
@@ -288,6 +296,90 @@ export async function run(argv: string[], cwd: string): Promise<void> {
         throw new OrbitError("BAD_ARGS", "--port must be an integer between 1 and 65535");
       }
       await cmdApi(config, logger, { host, port });
+      return;
+    }
+    case "federate": {
+      const to = rest[0];
+      const target = rest[1];
+      const jsonArg = argValue(rest, "--json");
+      if (!to || !target || !jsonArg) {
+        throw new OrbitError("BAD_ARGS", "federate requires <agent@domain> <svc>.<method> and --json");
+      }
+      const deliveryClassRaw = argValue(rest, "--delivery-class");
+      const deliveryClass =
+        deliveryClassRaw === "durable" || deliveryClassRaw === "auditable" || deliveryClassRaw === "best_effort"
+          ? deliveryClassRaw
+          : undefined;
+      if (deliveryClassRaw && !deliveryClass) {
+        throw new OrbitError("BAD_ARGS", "--delivery-class must be best_effort, durable, or auditable");
+      }
+      await cmdFederate(config, logger, {
+        to,
+        target,
+        body: parseJsonInput(jsonArg),
+        endpoint: argValue(rest, "--endpoint"),
+        runId: argValue(rest, "--run-id"),
+        timeoutMs: argValue(rest, "--timeout-ms") ? Number(argValue(rest, "--timeout-ms")) : undefined,
+        deliveryClass,
+        e2eeKeyId: argValue(rest, "--e2ee-key-id")
+      });
+      return;
+    }
+    case "federation": {
+      cmdFederation(config, logger, {
+        subcommand: rest[0],
+        domain: argValue(rest, "--domain"),
+        clientId: argValue(rest, "--client-id"),
+        keyId: argValue(rest, "--key-id")
+      });
+      return;
+    }
+    case "bridge": {
+      const protocolRaw = rest[0];
+      const jsonArg = argValue(rest, "--json");
+      if ((protocolRaw !== "a2a" && protocolRaw !== "mcp") || !jsonArg) {
+        throw new OrbitError("BAD_ARGS", "bridge requires <a2a|mcp> and --json");
+      }
+      const message = parseJsonInput(jsonArg);
+      if (!message || typeof message !== "object" || Array.isArray(message)) {
+        throw new OrbitError("BAD_JSON_INPUT", "bridge --json must be an object");
+      }
+      await cmdBridge(config, logger, {
+        protocol: protocolRaw,
+        message: message as Record<string, unknown>,
+        dispatch: hasFlag(rest, "--dispatch"),
+        to: argValue(rest, "--to"),
+        target: argValue(rest, "--target")
+      });
+      return;
+    }
+    case "abuse-report": {
+      const reporter = argValue(rest, "--reporter");
+      const subject = argValue(rest, "--subject");
+      const reason = argValue(rest, "--reason");
+      if (!reporter || !subject || !reason) {
+        throw new OrbitError("BAD_ARGS", "abuse-report requires --reporter --subject --reason");
+      }
+      const severityRaw = argValue(rest, "--severity");
+      const severity =
+        severityRaw === "low" || severityRaw === "medium" || severityRaw === "high" || severityRaw === "critical"
+          ? severityRaw
+          : undefined;
+      if (severityRaw && !severity) {
+        throw new OrbitError("BAD_ARGS", "--severity must be low, medium, high, or critical");
+      }
+      const evidenceArg = argValue(rest, "--evidence");
+      const evidenceRaw = evidenceArg ? parseJsonInput(evidenceArg) : undefined;
+      if (evidenceArg && (!evidenceRaw || typeof evidenceRaw !== "object" || Array.isArray(evidenceRaw))) {
+        throw new OrbitError("BAD_JSON_INPUT", "--evidence must be a JSON object");
+      }
+      await cmdAbuseReport(config, logger, {
+        reporter,
+        subject,
+        reason,
+        severity,
+        evidence: evidenceRaw as Record<string, unknown> | undefined
+      });
       return;
     }
     case "init": {
