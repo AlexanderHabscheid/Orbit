@@ -54,6 +54,29 @@ def main() -> None:
     ins.add_argument("service")
     ins.add_argument("--timeout-ms", type=int)
 
+    fed = sub.add_parser("federate")
+    fed.add_argument("to")
+    fed.add_argument("target")
+    fed.add_argument("--json", required=True)
+    fed.add_argument("--endpoint")
+    fed.add_argument("--timeout-ms", type=int)
+    fed.add_argument("--delivery-class")
+    fed.add_argument("--e2ee-key-id")
+
+    bridge = sub.add_parser("bridge")
+    bridge.add_argument("protocol", choices=["a2a", "mcp"])
+    bridge.add_argument("--json", required=True)
+    bridge.add_argument("--dispatch", action="store_true")
+    bridge.add_argument("--to")
+    bridge.add_argument("--target")
+
+    abuse = sub.add_parser("abuse-report")
+    abuse.add_argument("--reporter", required=True)
+    abuse.add_argument("--subject", required=True)
+    abuse.add_argument("--reason", required=True)
+    abuse.add_argument("--severity")
+    abuse.add_argument("--evidence")
+
     args = parser.parse_args()
     headers = {"authorization": f"Bearer {args.token}"} if args.token else None
     client = OrbitClient(base_url=args.base_url, timeout_s=args.timeout_s, headers=headers)
@@ -91,6 +114,38 @@ def main() -> None:
             )
         elif args.command == "inspect":
             out = client.inspect(args.service, timeout_ms=args.timeout_ms)
+        elif args.command == "federate":
+            out = client.federate(
+                args.to,
+                args.target,
+                parse_json_input(args.json),
+                endpoint=args.endpoint,
+                timeout_ms=args.timeout_ms,
+                delivery_class=args.delivery_class,
+                e2ee_key_id=args.e2ee_key_id,
+            )
+        elif args.command == "bridge":
+            msg = parse_json_input(args.json)
+            if not isinstance(msg, dict):
+                raise ValueError("bridge --json must parse to object")
+            out = client.bridge(
+                args.protocol,
+                msg,
+                dispatch=True if args.dispatch else None,
+                to=args.to,
+                target=args.target,
+            )
+        elif args.command == "abuse-report":
+            evidence = parse_json_input(args.evidence) if args.evidence else None
+            if evidence is not None and not isinstance(evidence, dict):
+                raise ValueError("--evidence must parse to object")
+            out = client.abuse_report(
+                args.reporter,
+                args.subject,
+                args.reason,
+                severity=args.severity,
+                evidence=evidence,
+            )
         else:
             raise ValueError(f"unknown command: {args.command}")
         print(json.dumps(out, indent=2))
