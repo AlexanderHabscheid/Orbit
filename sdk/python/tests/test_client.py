@@ -102,6 +102,27 @@ class OrbitClientTests(unittest.TestCase):
             },
         )
 
+    def test_federate_payload_parity(self):
+        client = OrbitClient(base_url=self.base_url, timeout_s=1.0)
+        client.federate(
+            "agent@example.org",
+            "svc.method",
+            {"x": 1},
+            delivery_class="durable",
+            e2ee_key_id="shared-1",
+        )
+        self.assertEqual(_Handler.captured["path"], "/v1/federate")
+        self.assertEqual(
+            _Handler.captured["json"],
+            {
+                "to": "agent@example.org",
+                "target": "svc.method",
+                "body": {"x": 1},
+                "deliveryClass": "durable",
+                "e2eeKeyId": "shared-1",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
