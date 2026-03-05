@@ -1,7 +1,7 @@
 import { OrbitError } from "./errors.js";
 import { assertJsonSchema } from "./json_schema.js";
 
-export type OrbitApiAction = "call" | "publish" | "inspect" | "ping";
+export type OrbitApiAction = "call" | "publish" | "inspect" | "ping" | "federate" | "bridge" | "abuse_report";
 
 export interface OrbitApiRequestEnvelope {
   id: string;
@@ -16,7 +16,7 @@ export interface OrbitApiResponseEnvelope {
   error?: { code?: string; message?: string };
 }
 
-const ACTIONS = new Set<OrbitApiAction>(["call", "publish", "inspect", "ping"]);
+const ACTIONS = new Set<OrbitApiAction>(["call", "publish", "inspect", "ping", "federate", "bridge", "abuse_report"]);
 
 export function isOrbitApiAction(value: string): value is OrbitApiAction {
   return ACTIONS.has(value as OrbitApiAction);
@@ -59,7 +59,8 @@ const ACTION_PAYLOAD_SCHEMAS: Record<OrbitApiAction, Record<string, unknown>> = 
       parentMessageId: { type: "string", minLength: 1 },
       capabilities: { type: "array", items: { type: "string", minLength: 1 } },
       traceparent: { type: "string", minLength: 1 },
-      dedupeKey: { type: "string", minLength: 1 }
+      dedupeKey: { type: "string", minLength: 1 },
+      e2eeKeyId: { type: "string", minLength: 1 }
     }
   },
   publish: {
@@ -87,6 +88,49 @@ const ACTION_PAYLOAD_SCHEMAS: Record<OrbitApiAction, Record<string, unknown>> = 
     properties: {
       service: { type: "string", minLength: 1 },
       timeoutMs: { type: "integer", minimum: 1 }
+    }
+  },
+  federate: {
+    type: "object",
+    required: ["to", "target", "body"],
+    additionalProperties: false,
+    properties: {
+      to: { type: "string", minLength: 3, pattern: "^[^@\\s]+@[^@\\s]+$" },
+      target: { type: "string", minLength: 3, pattern: "^[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+$" },
+      body: {},
+      endpoint: { type: "string", minLength: 8 },
+      runId: { type: "string", minLength: 1 },
+      timeoutMs: { type: "integer", minimum: 1 },
+      deliveryClass: { type: "string", enum: ["best_effort", "durable", "auditable"] },
+      taskId: { type: "string", minLength: 1 },
+      threadId: { type: "string", minLength: 1 },
+      parentMessageId: { type: "string", minLength: 1 },
+      traceparent: { type: "string", minLength: 1 },
+      dedupeKey: { type: "string", minLength: 1 }
+    }
+  },
+  bridge: {
+    type: "object",
+    required: ["protocol", "message"],
+    additionalProperties: false,
+    properties: {
+      protocol: { type: "string", enum: ["a2a", "mcp"] },
+      message: { type: "object" },
+      dispatch: { type: "boolean" },
+      to: { type: "string", minLength: 3, pattern: "^[^@\\s]+@[^@\\s]+$" },
+      target: { type: "string", minLength: 3, pattern: "^[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+$" }
+    }
+  },
+  abuse_report: {
+    type: "object",
+    required: ["reporter", "subject", "reason"],
+    additionalProperties: false,
+    properties: {
+      reporter: { type: "string", minLength: 3 },
+      subject: { type: "string", minLength: 3 },
+      reason: { type: "string", minLength: 3 },
+      evidence: { type: "object" },
+      severity: { type: "string", enum: ["low", "medium", "high", "critical"] }
     }
   }
 };
