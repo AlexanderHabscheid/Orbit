@@ -16,6 +16,7 @@ ORBIT is a local-first agent message bus CLI built on NATS with:
 - Live health/stat monitor (`orbit monitor`)
 - Local persistent control-plane agent (`orbit agent`)
 - External Orbit API service (`orbit api`)
+- Federated agent delivery (`orbit federate`, `POST /v1/federation/send`)
 - Externalized HTTP and persistent-worker method transports
 
 ## Orbit vs Velocity
@@ -70,6 +71,10 @@ orbit bench-overhead <svc>.<method> --json @req.json [--iterations 100] [--timeo
 orbit monitor [--service <svc>] [--interval-ms 2000] [--timeout-ms 1500] [--alerts] [--alert-latency-ms 250] [--alert-error-rate 0.05] [--alert-consecutive 3] [--alert-cooldown-s 30] [--once]
 orbit agent
 orbit api [--host 127.0.0.1] [--port 8787]
+orbit federate <agent@domain> <svc>.<method> --json @req.json [--endpoint <url>] [--delivery-class best_effort|durable|auditable] [--timeout-ms 5000] [--run-id <id>] [--e2ee-key-id <id>]
+orbit bridge <a2a|mcp> --json @msg.json [--dispatch] [--to <agent@domain>] [--target <svc>.<method>]
+orbit abuse-report --reporter <agent@domain> --subject <agent@domain> --reason <text> [--severity low|medium|high|critical] [--evidence @json]
+orbit federation <bootstrap|jwks|gen-e2ee-key|help> [--domain <domain>] [--client-id <id>] [--key-id <id>]
 orbit init [--profile single-agent|multi-agent|production] [--out-dir .] [--force]
 orbit doctor
 orbit cell <init|start|gateway|status> [...]
@@ -140,6 +145,12 @@ All bus messages use:
     "traceparent": "w3c-traceparent",
     "dedupe_key": "event-abc"
   },
+  "nonce": "uuid",
+  "exp": "2026-02-25T12:00:05.000Z",
+  "ack_id": "ack-uuid",
+  "trace_id": "trace-uuid",
+  "kid": "federation-key-id",
+  "sig": "base64url-signature",
   "hash": "sha256-of-canonical-fields"
 }
 ```
@@ -473,6 +484,38 @@ Env overrides:
 - `ORBIT_MONITOR_JITTER_MS`
 - `ORBIT_MONITOR_DOWN_BACKOFF_FACTOR`
 - `ORBIT_MONITOR_DOWN_BACKOFF_MAX_MS`
+- `ORBIT_FEDERATION_ENABLED` (`1`|`0`)
+- `ORBIT_FEDERATION_LOCAL_DOMAIN`
+- `ORBIT_FEDERATION_DEFAULT_DELIVERY_CLASS` (`best_effort`|`durable`|`auditable`)
+- `ORBIT_FEDERATION_DISCOVER_WELL_KNOWN` (`1`|`0`)
+- `ORBIT_FEDERATION_DISCOVERY_TIMEOUT_MS`
+- `ORBIT_FEDERATION_REQUEST_TIMEOUT_MS`
+- `ORBIT_FEDERATION_REPLAY_WINDOW_SEC`
+- `ORBIT_FEDERATION_INBOUND_TOKEN`
+- `ORBIT_FEDERATION_ALLOWLIST` (CSV)
+- `ORBIT_FEDERATION_BLOCKLIST` (CSV)
+- `ORBIT_FEDERATION_KEY_ID`
+- `ORBIT_FEDERATION_SIGNING_SECRET`
+- `ORBIT_FEDERATION_SIGNING_ALGORITHM` (`hmac-sha256`|`ed25519`)
+- `ORBIT_FEDERATION_PRIVATE_KEY_FILE`
+- `ORBIT_FEDERATION_PUBLIC_KEY_FILE`
+- `ORBIT_FEDERATION_DISCOVER_JWKS` (`1`|`0`)
+- `ORBIT_FEDERATION_REQUIRE_SIGNED_INBOUND` (`1`|`0`)
+- `ORBIT_FEDERATION_TRUSTED_KEYS_JSON` (JSON object: `{"kid":"secret"}`)
+- `ORBIT_FEDERATION_OAUTH_ENABLED` (`1`|`0`)
+- `ORBIT_FEDERATION_OAUTH_ISSUER`
+- `ORBIT_FEDERATION_OAUTH_AUDIENCE`
+- `ORBIT_FEDERATION_OAUTH_TOKEN_TTL_SEC`
+- `ORBIT_FEDERATION_REPUTATION_ENABLED` (`1`|`0`)
+- `ORBIT_FEDERATION_REPUTATION_DEFAULT_SCORE`
+- `ORBIT_FEDERATION_REPUTATION_MIN_SCORE`
+- `ORBIT_FEDERATION_REPUTATION_TRUST_FIRST_SEEN` (`1`|`0`)
+- `ORBIT_FEDERATION_CHALLENGE_ENABLED` (`1`|`0`)
+- `ORBIT_FEDERATION_CHALLENGE_DIFFICULTY`
+- `ORBIT_FEDERATION_CHALLENGE_TTL_SEC`
+- `ORBIT_FEDERATION_CHALLENGE_GRACE_SEC`
+- `ORBIT_FEDERATION_E2EE_ENABLED` (`1`|`0`)
+- `ORBIT_FEDERATION_E2EE_KEYS_JSON` (JSON object: `{"keyId":"base64-32-byte-key"}`)
 
 ## Tracing
 
@@ -558,14 +601,51 @@ API service endpoints:
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics` (Prometheus text)
+- `GET /.well-known/jwks.json`
+- `GET /.well-known/oauth-authorization-server`
+- `POST /oauth/token`
 - `POST /v1/ping`
 - `POST /v1/call`
 - `POST /v1/publish`
 - `POST /v1/inspect`
+- `POST /v1/federate`
+- `POST /v1/federation/send`
+- `POST /v1/federation/challenge`
+- `POST /v1/bridge`
+- `POST /v1/abuse_report`
 
 Contract source:
 
 - `docs/orbit-api-contract.yaml`
+
+## Federation (OIP v0)
+
+Orbit now includes an initial federated agent delivery layer.
+
+- CLI: `orbit federate <agent@domain> <svc>.<method> --json @req.json`
+- Bootstrap CLI: `orbit federation bootstrap --domain <your-domain>`
+- E2EE keygen CLI: `orbit federation gen-e2ee-key --key-id <key-id>`
+- API action: `POST /v1/federate`
+- Inbound federation edge: `POST /v1/federation/send`
+- Well-known discovery: `https://<domain>/.well-known/orbit-federation.json`
+- Challenge endpoint: `POST /v1/federation/challenge`
+- Protocol bridge action: `POST /v1/bridge` (`a2a` and `mcp`)
+- Abuse pipeline action: `POST /v1/abuse_report`
+
+Quick bootstrap for immediate agent use:
+
+```bash
+orbit federation bootstrap --domain agents.example.com --client-id agent-runtime
+orbit api --host 0.0.0.0 --port 8787
+```
+
+OIP v0 docs:
+
+- `docs/oip/v0/architecture.md`
+- `docs/oip/v0/message.md`
+- `docs/oip/v0/auth.md`
+- `docs/oip/v0/discovery.md`
+- `docs/oip/v0/errors.md`
 
 ## Production Deployment Notes
 
