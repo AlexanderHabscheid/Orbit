@@ -113,6 +113,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrbitErrorEnvelope"
+  /.well-known/jwks.json:
+    get:
+      summary: Local JWKS for federation signature verification
+      responses:
+        "200":
+          description: JWKS document
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+  /.well-known/oauth-authorization-server:
+    get:
+      summary: OAuth authorization server metadata
+      responses:
+        "200":
+          description: Metadata document
+          content:
+            application/json:
+              schema:
+                type: object
+  /oauth/token:
+    post:
+      summary: OAuth2 client credentials token endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grant_type, client_id, client_secret]
+              properties:
+                grant_type: { type: string, enum: [client_credentials] }
+                client_id: { type: string }
+                client_secret: { type: string }
+                scope: { type: string }
+      responses:
+        "200":
+          description: Access token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in]
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  expires_in: { type: integer }
+                  scope: { type: string }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
   /v1/ping:
     post:
       summary: Ping Orbit API
@@ -374,3 +434,203 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrbitErrorEnvelope"
+  /v1/federate:
+    post:
+      summary: Federate message to remote domain
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to, target, body]
+              additionalProperties: false
+              properties:
+                to:
+                  type: string
+                  pattern: ^[^@\s]+@[^@\s]+$
+                target:
+                  type: string
+                  pattern: ^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$
+                body: {}
+                endpoint: { type: string, minLength: 8 }
+                runId: { type: string, minLength: 1 }
+                timeoutMs: { type: integer, minimum: 1 }
+                deliveryClass: { type: string, enum: [best_effort, durable, auditable] }
+                e2eeKeyId: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitSuccessEnvelope"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "408":
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "429":
+          description: Overloaded or rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+  /v1/federation/send:
+    post:
+      summary: Inbound federation delivery endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to, target, envelope]
+              additionalProperties: false
+              properties:
+                from: { type: string, minLength: 3 }
+                to: { type: string, minLength: 3 }
+                target:
+                  type: string
+                  pattern: ^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$
+                delivery_class: { type: string, enum: [best_effort, durable, auditable] }
+                envelope: { type: object }
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitSuccessEnvelope"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "408":
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "429":
+          description: Overloaded or rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitErrorEnvelope"
+  /v1/federation/challenge:
+    post:
+      summary: Issue proof-of-work challenge for federation sender domain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from]
+              properties:
+                from: { type: string, minLength: 3 }
+      responses:
+        "200":
+          description: Challenge issued
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/bridge:
+    post:
+      summary: Protocol bridge normalization/dispatch (A2A, MCP)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [protocol, message]
+              properties:
+                protocol: { type: string, enum: [a2a, mcp] }
+                message: { type: object }
+                dispatch: { type: boolean }
+                to: { type: string }
+                target: { type: string }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitSuccessEnvelope"
+  /v1/abuse_report:
+    post:
+      summary: Submit federated abuse report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reporter, subject, reason]
+              properties:
+                reporter: { type: string }
+                subject: { type: string }
+                reason: { type: string }
+                severity: { type: string, enum: [low, medium, high, critical] }
+                evidence: { type: object }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbitSuccessEnvelope"
