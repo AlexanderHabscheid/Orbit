@@ -50,6 +50,10 @@ This index maps the runtime wiring, SDK integrations, and module ownership.
 - `src/commands/monitor.ts`: health/stat polling and alert state machine.
 - `src/commands/agent.ts`: local UNIX-socket control plane agent.
 - `src/commands/api.ts`: external HTTP API service.
+- `src/commands/federate.ts`: outbound federated message sender.
+- `src/commands/federation.ts`: federation bootstrap (`keygen + oauth client`) and JWKS view.
+- `src/commands/bridge.ts`: protocol bridge CLI (`a2a|mcp`) normalization/dispatch.
+- `src/commands/abuse_report.ts`: abuse report submitter CLI.
 - `src/commands/cell.ts`: cell lifecycle (`init|start|gateway|status`) and status persistence.
 - `src/cli.ts` (`echo` and `cell` subcommands): forwards to EchoCore and cell runtime wiring.
 
@@ -67,6 +71,31 @@ This index maps the runtime wiring, SDK integrations, and module ownership.
 - `src/api_http.ts`: API HTTP error normalization and status mapping.
 - `src/json_schema.ts`: JSON-schema validator used for API and service contracts.
 - `src/metrics.ts`: in-process counters/histograms and Prometheus rendering.
+
+## Federation Layer
+
+- `src/federation/transport.ts`: outbound federation transport (`orbit federate`, API `federate` action).
+- `src/federation/discovery.ts`: `/.well-known/orbit-federation.json` resolution with fallback.
+- `src/federation/policy.ts`: allowlist/blocklist policy checks + trusted key lookups.
+- `src/federation/ingress.ts`: inbound federation validation/replay checks + NATS publish.
+- `src/federation/replay_guard.ts`: in-memory replay nonce guard.
+- `src/federation/challenge.ts`: proof-of-work challenge issue/verify for graylisted domains.
+
+## Identity/OAuth
+
+- `src/identity/keys.ts`: Ed25519 keypair generation and local key material loading.
+- `src/identity/jwks.ts`: local JWKS publishing and remote JWKS key resolution cache.
+- `src/identity/oauth.ts`: OAuth client-credentials token issue and bearer verification.
+
+## Security + Policy
+
+- `src/reputation/store.ts`: domain reputation persistence and challenge-grace tracking.
+- `src/reputation/abuse.ts`: abuse report publish path and reputation penalty updates.
+- `src/security/e2ee.ts`: AES-256-GCM payload encryption/decryption helpers.
+
+## Interop Bridges
+
+- `src/bridge/protocols.ts`: A2A/MCP message normalization to Orbit-compatible shape.
 
 ## SDKs
 
@@ -92,6 +121,12 @@ This index maps the runtime wiring, SDK integrations, and module ownership.
 - `tests/retry.test.ts`: retry/timeout behavior.
 - `tests/monitor_alerts.test.ts`: monitor alert lifecycle behavior.
 - `tests/service_adapter.test.ts`: transport executor behavior.
+- `tests/federation_policy.test.ts`: federation allow/block policy behavior.
+- `tests/replay_guard.test.ts`: nonce replay window behavior.
+- `tests/oauth.test.ts`: OAuth client-credentials token issue/verify behavior.
+- `tests/challenge.test.ts`: proof-of-work challenge behavior.
+- `tests/e2ee.test.ts`: encrypted payload roundtrip behavior.
+- `tests/bridge.test.ts`: A2A/MCP normalization behavior.
 - `tests/integration.orbit.e2e.test.ts`: Docker-backed NATS integration flow (`up/serve/call/api/agent`).
 
 ## Integration Wiring Notes
