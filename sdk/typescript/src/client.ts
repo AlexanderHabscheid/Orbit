@@ -4,6 +4,9 @@ import {
   OrbitApiResponseEnvelope,
   OrbitCallParams,
   OrbitClientOptions,
+  OrbitFederateParams,
+  OrbitBridgeParams,
+  OrbitAbuseReportParams,
   OrbitInspectParams,
   OrbitPublishParams
 } from "./types.js";
@@ -44,6 +47,18 @@ export class OrbitClient {
 
   async inspect(params: OrbitInspectParams): Promise<unknown> {
     return this.request("inspect", params, params.timeoutMs);
+  }
+
+  async federate(params: OrbitFederateParams): Promise<unknown> {
+    return this.request("federate", params, params.timeoutMs);
+  }
+
+  async bridge(params: OrbitBridgeParams): Promise<unknown> {
+    return this.request("bridge", params);
+  }
+
+  async abuseReport(params: OrbitAbuseReportParams): Promise<unknown> {
+    return this.request("abuse_report", params);
   }
 
   private async request(
