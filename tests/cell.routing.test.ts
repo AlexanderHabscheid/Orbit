@@ -53,6 +53,46 @@ function makeConfig(): OrbitConfig {
       allowedHosts: ["127.0.0.1"],
       tls: { enabled: false, requestClientCert: false, requireClientCert: false }
     },
+    federation: {
+      enabled: false,
+      localDomain: "localhost",
+      defaultDeliveryClass: "best_effort",
+      discoverWellKnown: true,
+      discoveryTimeoutMs: 1000,
+      requestTimeoutMs: 1000,
+      replayWindowSec: 300,
+      allowlist: [],
+      blocklist: [],
+      signing: {
+        algorithm: "hmac-sha256",
+        discoverJwks: true,
+        requireSignedInbound: false,
+        trustedKeys: {}
+      },
+      oauth: {
+        enabled: false,
+        issuer: "http://127.0.0.1:8787",
+        audience: "orbit-federation",
+        tokenTtlSec: 3600,
+        clients: {}
+      },
+      reputation: {
+        enabled: true,
+        defaultScore: 50,
+        minScore: 20,
+        trustOnFirstSeen: false
+      },
+      challenge: {
+        enabled: true,
+        difficulty: 3,
+        ttlSec: 120,
+        graceSec: 900
+      },
+      e2ee: {
+        enabled: false,
+        keys: {}
+      }
+    },
     agent: { enabled: true, socketPath: "/tmp/orbit-test/agent.sock" },
     broker: { host: "127.0.0.1", port: 4222, dockerImage: "nats:2", containerName: "orbit-nats" }
   };
