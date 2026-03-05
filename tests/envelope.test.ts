@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { createEnvelope, validateEnvelope } from "../src/envelope.js";
 
 test("createEnvelope + validateEnvelope roundtrip", () => {
@@ -69,4 +70,43 @@ test("validateEnvelope rejects invalid a2a metadata", () => {
     }
   };
   assert.throws(() => validateEnvelope(tampered), /a2a/i);
+});
+
+test("createEnvelope supports optional signatures", () => {
+  const env = createEnvelope({
+    kind: "request",
+    payload: { secure: true },
+    signing: { keyId: "k1", secret: "secret-1" }
+  });
+  const validated = validateEnvelope(env, {
+    resolveSignatureSecret: (kid) => (kid === "k1" ? "secret-1" : undefined)
+  });
+  assert.equal(validated.kid, "k1");
+  assert.ok(validated.sig);
+});
+
+test("validateEnvelope enforces required signatures when configured", () => {
+  const env = createEnvelope({
+    kind: "request",
+    payload: { secure: true }
+  });
+  assert.throws(() => validateEnvelope(env, { requireSignature: true }), /signature is required/i);
+});
+
+test("createEnvelope supports ed25519 signatures", () => {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("ed25519");
+  const env = createEnvelope({
+    kind: "request",
+    payload: { secure: "eddsa" },
+    signing: {
+      keyId: "ed-k1",
+      algorithm: "ed25519",
+      privateKeyPem: privateKey.export({ type: "pkcs8", format: "pem" }).toString()
+    }
+  });
+  const validated = validateEnvelope(env, {
+    resolveSignaturePublicKey: (kid) =>
+      kid === "ed-k1" ? publicKey.export({ type: "spki", format: "pem" }).toString() : undefined
+  });
+  assert.equal(validated.sig_alg, "ed25519");
 });
