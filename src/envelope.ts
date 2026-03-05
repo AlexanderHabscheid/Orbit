@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { OrbitError } from "./errors.js";
 import { Envelope, EnvelopeKind } from "./types.js";
 import { randomId, sha256, stableStringify } from "./util.js";
@@ -8,6 +9,28 @@ export function hashEnvelopeFields(input: Omit<Envelope, "hash">): string {
   return sha256(stableStringify(input));
 }
 
+function signHash(hash: string, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(hash).digest("base64url");
+}
+
+function signHashEd25519(hash: string, privateKeyPem: string): string {
+  return crypto.sign(null, Buffer.from(hash, "utf-8"), privateKeyPem).toString("base64url");
+}
+
+function verifyHashSignature(hash: string, secret: string, sig: string): boolean {
+  const expected = signHash(hash, secret);
+  if (expected.length !== sig.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+}
+
+function verifyHashSignatureEd25519(hash: string, publicKeyPem: string, sig: string): boolean {
+  try {
+    return crypto.verify(null, Buffer.from(hash, "utf-8"), publicKeyPem, Buffer.from(sig, "base64url"));
+  } catch {
+    return false;
+  }
+}
+
 export function createEnvelope(params: {
   kind: EnvelopeKind;
   payload: unknown;
@@ -16,6 +39,16 @@ export function createEnvelope(params: {
   provenance?: Record<string, unknown>;
   cost?: Record<string, number>;
   a2a?: Envelope["a2a"];
+  nonce?: string;
+  expiresAt?: string;
+  ackId?: string;
+  traceId?: string;
+  signing?: {
+    keyId: string;
+    algorithm?: "hmac-sha256" | "ed25519";
+    secret?: string;
+    privateKeyPem?: string;
+  };
 }): Envelope {
   const base: Omit<Envelope, "hash"> = {
     id: randomId(),
@@ -27,9 +60,31 @@ export function createEnvelope(params: {
     data_pack: params.dataPack,
     provenance: params.provenance,
     cost: params.cost,
-    a2a: params.a2a
+    a2a: params.a2a,
+    nonce: params.nonce,
+    exp: params.expiresAt,
+    ack_id: params.ackId,
+    trace_id: params.traceId,
+    kid: params.signing?.keyId,
+    sig_alg: params.signing?.algorithm ?? (params.signing ? "hmac-sha256" : undefined),
+    sig: undefined
   };
-  return { ...base, hash: hashEnvelopeFields(base) };
+  const hash = hashEnvelopeFields(base);
+  let sig: string | undefined;
+  if (params.signing) {
+    if ((params.signing.algorithm ?? "hmac-sha256") === "ed25519") {
+      if (!params.signing.privateKeyPem) {
+        throw new OrbitError("BAD_ARGS", "ed25519 signing requires privateKeyPem");
+      }
+      sig = signHashEd25519(hash, params.signing.privateKeyPem);
+    } else {
+      if (!params.signing.secret) {
+        throw new OrbitError("BAD_ARGS", "hmac signing requires secret");
+      }
+      sig = signHash(hash, params.signing.secret);
+    }
+  }
+  return { ...base, hash, sig };
 }
 
 function validateA2A(input: unknown): Envelope["a2a"] {
@@ -60,7 +115,17 @@ function validateA2A(input: unknown): Envelope["a2a"] {
   };
 }
 
-export function validateEnvelope(input: unknown, options?: { skipHashCheck?: boolean }): Envelope {
+export function validateEnvelope(
+  input: unknown,
+  options?: {
+    skipHashCheck?: boolean;
+    maxSkewMs?: number;
+    nowMs?: number;
+    requireSignature?: boolean;
+    resolveSignatureSecret?: (kid: string) => string | undefined;
+    resolveSignaturePublicKey?: (kid: string) => string | undefined;
+  }
+): Envelope {
   if (!input || typeof input !== "object") {
     throw new OrbitError("INVALID_ENVELOPE", "Envelope must be an object");
   }
@@ -75,6 +140,27 @@ export function validateEnvelope(input: unknown, options?: { skipHashCheck?: boo
   if (typeof env.kind !== "string") throw new OrbitError("INVALID_ENVELOPE", "kind must be string");
   if (typeof env.schema_version !== "string") throw new OrbitError("INVALID_ENVELOPE", "schema_version must be string");
   if (typeof env.hash !== "string" || !env.hash) throw new OrbitError("INVALID_ENVELOPE", "hash must be string");
+  if (env.nonce !== undefined && (typeof env.nonce !== "string" || !env.nonce)) {
+    throw new OrbitError("INVALID_ENVELOPE", "nonce must be a non-empty string");
+  }
+  if (env.exp !== undefined && (typeof env.exp !== "string" || Number.isNaN(Date.parse(env.exp)))) {
+    throw new OrbitError("INVALID_ENVELOPE", "exp must be ISO timestamp");
+  }
+  if (env.ack_id !== undefined && (typeof env.ack_id !== "string" || !env.ack_id)) {
+    throw new OrbitError("INVALID_ENVELOPE", "ack_id must be a non-empty string");
+  }
+  if (env.trace_id !== undefined && (typeof env.trace_id !== "string" || !env.trace_id)) {
+    throw new OrbitError("INVALID_ENVELOPE", "trace_id must be a non-empty string");
+  }
+  if (env.kid !== undefined && (typeof env.kid !== "string" || !env.kid)) {
+    throw new OrbitError("INVALID_ENVELOPE", "kid must be a non-empty string");
+  }
+  if (env.sig_alg !== undefined && env.sig_alg !== "hmac-sha256" && env.sig_alg !== "ed25519") {
+    throw new OrbitError("INVALID_ENVELOPE", "sig_alg must be hmac-sha256 or ed25519");
+  }
+  if (env.sig !== undefined && (typeof env.sig !== "string" || !env.sig)) {
+    throw new OrbitError("INVALID_ENVELOPE", "sig must be a non-empty string");
+  }
 
   const candidate: Omit<Envelope, "hash"> = {
     id: env.id,
@@ -86,10 +172,48 @@ export function validateEnvelope(input: unknown, options?: { skipHashCheck?: boo
     data_pack: env.data_pack,
     provenance: env.provenance,
     cost: env.cost,
-    a2a: validateA2A(env.a2a)
+    a2a: validateA2A(env.a2a),
+    nonce: env.nonce,
+    exp: env.exp,
+    ack_id: env.ack_id,
+    trace_id: env.trace_id,
+    kid: env.kid,
+    sig_alg: env.sig_alg,
+    sig: undefined
   };
   if (!options?.skipHashCheck && hashEnvelopeFields(candidate) !== env.hash) {
     throw new OrbitError("INVALID_ENVELOPE_HASH", "Envelope hash mismatch");
+  }
+  const nowMs = options?.nowMs ?? Date.now();
+  const maxSkewMs = options?.maxSkewMs ?? 60_000;
+  if (candidate.exp && Date.parse(candidate.exp) + maxSkewMs < nowMs) {
+    throw new OrbitError("ENVELOPE_EXPIRED", "Envelope exp is in the past");
+  }
+  if (options?.requireSignature && (!env.sig || !env.kid)) {
+    throw new OrbitError("ENVELOPE_SIGNATURE_REQUIRED", "Envelope signature is required");
+  }
+  if (env.sig) {
+    if (!env.kid) {
+      throw new OrbitError("INVALID_ENVELOPE", "sig requires kid");
+    }
+    const alg = env.sig_alg ?? "hmac-sha256";
+    if (alg === "ed25519") {
+      const publicKey = options?.resolveSignaturePublicKey?.(env.kid);
+      if (!publicKey) {
+        throw new OrbitError("UNKNOWN_SIGNER", `no trusted signing key for kid ${env.kid}`);
+      }
+      if (!verifyHashSignatureEd25519(env.hash, publicKey, env.sig)) {
+        throw new OrbitError("INVALID_ENVELOPE_SIGNATURE", "Envelope signature mismatch");
+      }
+    } else {
+      const secret = options?.resolveSignatureSecret?.(env.kid);
+      if (!secret) {
+        throw new OrbitError("UNKNOWN_SIGNER", `no trusted signing secret for kid ${env.kid}`);
+      }
+      if (!verifyHashSignature(env.hash, secret, env.sig)) {
+        throw new OrbitError("INVALID_ENVELOPE_SIGNATURE", "Envelope signature mismatch");
+      }
+    }
   }
   return {
     ...(env as Envelope),
