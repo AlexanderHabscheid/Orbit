@@ -23,6 +23,13 @@ export interface Envelope {
     traceparent?: string;
     dedupe_key?: string;
   };
+  nonce?: string;
+  exp?: string;
+  ack_id?: string;
+  trace_id?: string;
+  kid?: string;
+  sig_alg?: "hmac-sha256" | "ed25519";
+  sig?: string;
   hash: string;
 }
 
@@ -103,6 +110,51 @@ export interface OrbitConfig {
       caFile?: string;
       requestClientCert: boolean;
       requireClientCert: boolean;
+    };
+  };
+  federation: {
+    enabled: boolean;
+    localDomain: string;
+    defaultDeliveryClass: "best_effort" | "durable" | "auditable";
+    discoverWellKnown: boolean;
+    discoveryTimeoutMs: number;
+    requestTimeoutMs: number;
+    replayWindowSec: number;
+    inboundAuthToken?: string;
+    allowlist: string[];
+    blocklist: string[];
+    signing: {
+      keyId?: string;
+      secret?: string;
+      algorithm: "hmac-sha256" | "ed25519";
+      privateKeyFile?: string;
+      publicKeyFile?: string;
+      discoverJwks: boolean;
+      requireSignedInbound: boolean;
+      trustedKeys: Record<string, string>;
+    };
+    oauth: {
+      enabled: boolean;
+      issuer: string;
+      audience: string;
+      tokenTtlSec: number;
+      clients: Record<string, string>;
+    };
+    reputation: {
+      enabled: boolean;
+      defaultScore: number;
+      minScore: number;
+      trustOnFirstSeen: boolean;
+    };
+    challenge: {
+      enabled: boolean;
+      difficulty: number;
+      ttlSec: number;
+      graceSec: number;
+    };
+    e2ee: {
+      enabled: boolean;
+      keys: Record<string, string>;
     };
   };
   agent: {
