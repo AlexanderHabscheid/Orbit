@@ -1,4 +1,4 @@
-export type OrbitApiAction = "call" | "publish" | "inspect" | "ping";
+export type OrbitApiAction = "call" | "publish" | "inspect" | "ping" | "federate" | "bridge" | "abuse_report";
 
 export interface OrbitApiErrorBody {
   code?: string;
@@ -50,4 +50,31 @@ export interface OrbitPublishParams {
 export interface OrbitInspectParams {
   service: string;
   timeoutMs?: number;
+}
+
+export interface OrbitFederateParams {
+  to: string;
+  target: string;
+  body: unknown;
+  endpoint?: string;
+  runId?: string;
+  timeoutMs?: number;
+  deliveryClass?: "best_effort" | "durable" | "auditable";
+  e2eeKeyId?: string;
+}
+
+export interface OrbitBridgeParams {
+  protocol: "a2a" | "mcp";
+  message: Record<string, unknown>;
+  dispatch?: boolean;
+  to?: string;
+  target?: string;
+}
+
+export interface OrbitAbuseReportParams {
+  reporter: string;
+  subject: string;
+  reason: string;
+  severity?: "low" | "medium" | "high" | "critical";
+  evidence?: Record<string, unknown>;
 }
