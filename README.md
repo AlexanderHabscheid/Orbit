@@ -587,6 +587,22 @@ Tests cover:
 - Envelope validation and tamper detection
 - Retry/timeout behavior
 
+## Commit Workflow
+
+Install the repo-managed commit hook and template once per clone:
+
+```bash
+npm run commit:install
+```
+
+Audit the current branch before pushing:
+
+```bash
+npm run commit:audit
+```
+
+Commit subjects should use `type(scope): summary` and describe the behavioral outcome, not just the file name. Full policy and rewrite guidance live in `docs/commit-history-policy.md`.
+
 ## External API + SDKs
 
 Orbit includes two SDKs and two CLIs for external integration:

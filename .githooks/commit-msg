@@ -1,0 +1,3 @@
+#!/bin/sh
+
+node scripts/commit-lint.mjs --edit "$1"

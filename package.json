@@ -26,6 +26,9 @@
     "test": "node --test --import tsx tests/*.test.ts",
     "test:integration": "node --test --import tsx tests/integration.orbit.e2e.test.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "commit:install": "git config core.hooksPath .githooks && git config commit.template .gitmessage",
+    "commit:lint": "node scripts/commit-lint.mjs --edit",
+    "commit:audit": "node scripts/commit-lint.mjs --upstream",
     "perf": "node --import tsx scripts/perf-budget.ts",
     "bootstrap:prod": "node --import tsx scripts/bootstrap-production-config.ts"
   },
