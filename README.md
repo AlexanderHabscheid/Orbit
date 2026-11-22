@@ -167,6 +167,26 @@ orbit call text.upper --json @examples/star/request.json
 orbit doctor
 ```
 
+### 45-second walkthrough
+
+Start a worker, deliberately drop one reply, then follow the timeout and
+successful retry under the same run ID.
+
+https://github.com/user-attachments/assets/15d40d63-8b7d-4ea6-937f-85789d202a3d
+
+[Download the MP4](docs/media/retry-walkthrough.mp4).
+
+Run the same demo from this repository with Node.js 20+ and Docker running.
+
+```bash
+npm install -g orbitai-cli@0.2.1
+bash examples/star/retry-demo.sh
+```
+
+The script starts a temporary NATS broker and an uppercase worker. The second
+call uses a 650 ms timeout per attempt and one retry. Its trace shows
+`retry … error=TIMEOUT`, `attempt_reply … retry=1`, and `call_end … retry=1`.
+
 ### Copy-paste integration snippets
 
 Node agent:
