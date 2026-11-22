@@ -172,11 +172,7 @@ orbit doctor
 Start a worker, deliberately drop one reply, then follow the timeout and
 successful retry under the same run ID.
 
-https://github.com/user-attachments/assets/15d40d63-8b7d-4ea6-937f-85789d202a3d
-
-[Download the MP4](docs/media/retry-walkthrough.mp4).
-
-Run the same demo from this repository with Node.js 20+ and Docker running.
+Run the demo from this repository with Node.js 20+ and Docker running.
 
 ```bash
 npm install -g orbitai-cli@0.2.1
